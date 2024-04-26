@@ -4,12 +4,18 @@
 #include <net/if.h>
 #include <net/ethernet.h>
 #include <linux/if_packet.h>
+#include <errno.h>
 
 int cria_raw_socket(char* nome_interface_rede);
 
 int main () {
-    int soquete = cria_raw_socket("enp1s0");
+    int soquete = cria_raw_socket("enp2s0");
     printf("soquete: %d\n", soquete);
+	if (listen(soquete, 10) == -1) {
+		fprintf(stderr, "Erro ao habilitar pedidos de conexão\n");
+		fprintf(stderr, "%d\n", errno);
+		exit(1);
+	}
     return 0;
 }
 
@@ -18,7 +24,7 @@ int cria_raw_socket(char* nome_interface_rede)
     int soquete = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
     if (soquete == -1) {
         fprintf(stderr, "Erro ao criar socket: Verifique se voce eh root!\n");
-        exit(-1);
+        exit(1);
     }
 
     int ifindex = if_nametoindex(nome_interface_rede);
@@ -30,7 +36,7 @@ int cria_raw_socket(char* nome_interface_rede)
 
     if (bind(soquete, (struct sockaddr*) &endereco, sizeof(endereco)) == -1) {
         fprintf(stderr, "Erro ao fazer bind no socket\n");
-        exit(-1);
+        exit(1);
     }
 
     struct packet_mreq mr = {0};
@@ -39,7 +45,7 @@ int cria_raw_socket(char* nome_interface_rede)
 
     if (setsockopt(soquete, SOL_PACKET, PACKET_ADD_MEMBERSHIP, &mr, sizeof(mr)) == -1) {
         fprintf(stderr, "Erro ao fazer setsockopt: verifique se a interface de rede foi especificada corretamente");
-        exit(-1);
+        exit(1);
     }
 
     return soquete;

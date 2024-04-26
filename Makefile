@@ -1,6 +1,6 @@
 # Programa
-PROG 	= main
-OBJS 	= main.o
+PROG 	= server
+OBJS 	= server.o
 
 # Compilador
 CC		= gcc
