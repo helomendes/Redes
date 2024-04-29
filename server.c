@@ -34,12 +34,13 @@ int cria_raw_socket(char* nome_interface_rede)
         exit(1);
     }
 
-	if (listen(soquete, 10) == -1) {
+	// listen() expects a connection-oriented socket and raw sockets are not
+	/*if (listen(soquete, 10) == -1) {
 		fprintf(stderr, "Erro ao habilitar pedidos de conexão\n");
 		fprintf(stderr, "%d\n", errno);
 		exit(1);
-	}
-    
+	}*/
+
 	struct packet_mreq mr = {0};
     mr.mr_ifindex = ifindex;
     mr.mr_type = PACKET_MR_PROMISC;
