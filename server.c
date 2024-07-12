@@ -5,12 +5,32 @@
 #include <net/ethernet.h>
 #include <linux/if_packet.h>
 #include <errno.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <unistd.h>
 
-int cria_raw_socket(char* nome_interface_rede);
+#define NETWORK_INTERFACE "lo"
+#define BUFFER_SIZE 1024
+#define SLEEP 1
+#define DURATION 10
+
+int cria_raw_socket( char* nome_interface_rede );
 
 int main () {
-    int soquete = cria_raw_socket("enp2s0");
-    printf("soquete: %d\n", soquete);
+    int soquete = cria_raw_socket(NETWORK_INTERFACE);
+
+    char* buffer = malloc(BUFFER_SIZE);
+
+    ssize_t bytes_recebidos;
+
+    bytes_recebidos = recvfrom(soquete, buffer, BUFFER_SIZE, 0, NULL, NULL);
+    buffer[bytes_recebidos] = '\0';
+    printf("bytes recebidos: %ld\n", bytes_recebidos);
+    printf("%s\n", (char*) buffer);
+
+    free(buffer);
+    close(soquete);
+
     return 0;
 }
 
@@ -19,7 +39,7 @@ int cria_raw_socket(char* nome_interface_rede)
     int soquete = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
     if (soquete == -1) {
         fprintf(stderr, "Erro ao criar socket: Verifique se voce eh root!\n");
-        exit(1);
+        exit(-1);
     }
 
     int ifindex = if_nametoindex(nome_interface_rede);
@@ -34,23 +54,14 @@ int cria_raw_socket(char* nome_interface_rede)
         exit(1);
     }
 
-	// listen() expects a connection-oriented socket and raw sockets are not
-	/*if (listen(soquete, 10) == -1) {
-		fprintf(stderr, "Erro ao habilitar pedidos de conexão\n");
-		fprintf(stderr, "%d\n", errno);
-		exit(1);
-	}*/
-
 	struct packet_mreq mr = {0};
     mr.mr_ifindex = ifindex;
-    mr.mr_type = PACKET_MR_PROMISC;
+    mr.mr_type = PACKET_MR_PROMISC; // Modo promiscuo
 
     if (setsockopt(soquete, SOL_PACKET, PACKET_ADD_MEMBERSHIP, &mr, sizeof(mr)) == -1) {
-        fprintf(stderr, "Erro ao fazer setsockopt: verifique se a interface de rede foi especificada corretamente");
+        fprintf(stderr, "Erro ao fazer setsockopt: verifique se a interface de rede foi especificada corretamente\n");
         exit(1);
     }
 
-
-    
 	return soquete;
 }

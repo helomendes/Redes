@@ -34,10 +34,10 @@ int cria_raw_socket(char* nome_interface_rede)
     endereco.sll_protocol = htons(ETH_P_ALL);
     endereco.sll_ifindex = ifindex;
 
-    if (bind(soquete, (struct sockaddr*) &endereco, sizeof(endereco)) == -1) {
-        fprintf(stderr, "Erro ao fazer bind no socket\n");
-        exit(1);
-    }
+    //if (bind(soquete, (struct sockaddr*) &endereco, sizeof(endereco)) == -1) {
+    //    fprintf(stderr, "Erro ao fazer bind no socket\n");
+    //    exit(1);
+    //}
 
     struct packet_mreq mr = {0};
     mr.mr_ifindex = ifindex;
