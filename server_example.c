@@ -1,0 +1,57 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/socket.h>
+#include <sys/ioctl.h>
+#include <net/if.h>
+#include <netinet/ether.h>
+#include <arpa/inet.h>
+
+#define ETHERNET_FRAME_LEN 1518
+
+int main() {
+    int sockfd;
+    char buffer[ETHERNET_FRAME_LEN];
+    struct sockaddr_ll addr;
+    socklen_t addr_len = sizeof(struct sockaddr_ll);
+
+    if ((sockfd = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL))) == -1) {
+        perror("socket");
+        exit(1);
+    }
+
+    struct ifreq ifr;
+    memset(&ifr, 0, sizeof(struct ifreq));
+    strncpy(ifr.ifr_name, "eth0", IFNAMSIZ - 1); // Change "eth0" to your interface
+    if (setsockopt(sockfd, SOL_SOCKET, SO_BINDTODEVICE, (void *)&ifr, sizeof(ifr)) < 0) {
+        perror("SO_BINDTODEVICE");
+        close(sockfd);
+        exit(1);
+    }
+
+    while (1) {
+        memset(buffer, 0, ETHERNET_FRAME_LEN);
+        int numbytes = recvfrom(sockfd, buffer, ETHERNET_FRAME_LEN, 0, (struct sockaddr *)&addr, &addr_len);
+        if (numbytes < 0) {
+            perror("recvfrom");
+            close(sockfd);
+            exit(1);
+        }
+
+        struct ether_header *eh = (struct ether_header *) buffer;
+        printf("Received packet:\n");
+        printf("Destination MAC: %02x:%02x:%02x:%02x:%02x:%02x\n",
+               eh->ether_dhost[0], eh->ether_dhost[1], eh->ether_dhost[2],
+               eh->ether_dhost[3], eh->ether_dhost[4], eh->ether_dhost[5]);
+        printf("Source MAC: %02x:%02x:%02x:%02x:%02x:%02x\n",
+               eh->ether_shost[0], eh->ether_shost[1], eh->ether_shost[2],
+               eh->ether_shost[3], eh->ether_shost[4], eh->ether_shost[5]);
+        printf("EtherType: %04x\n", ntohs(eh->ether_type));
+        printf("Payload: %s\n", buffer + sizeof(struct ether_header));
+        printf("Payload length: %ld bytes\n", numbytes - sizeof(struct ether_header));
+    }
+
+    close(sockfd);
+    return 0;
+}
