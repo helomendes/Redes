@@ -7,6 +7,7 @@
 #include <net/if.h>
 #include <netinet/ether.h>
 #include <arpa/inet.h>
+#include <linux/if_packet.h>
 
 #define ETHERNET_FRAME_LEN 1518
 
@@ -23,7 +24,7 @@ int main() {
 
     struct ifreq ifr;
     memset(&ifr, 0, sizeof(struct ifreq));
-    strncpy(ifr.ifr_name, "eth0", IFNAMSIZ - 1); // Change "eth0" to your interface
+    strncpy(ifr.ifr_name, "enp1s0", IFNAMSIZ - 1); // Change "eth0" to your interface
     if (setsockopt(sockfd, SOL_SOCKET, SO_BINDTODEVICE, (void *)&ifr, sizeof(ifr)) < 0) {
         perror("SO_BINDTODEVICE");
         close(sockfd);
@@ -40,16 +41,18 @@ int main() {
         }
 
         struct ether_header *eh = (struct ether_header *) buffer;
-        printf("Received packet:\n");
-        printf("Destination MAC: %02x:%02x:%02x:%02x:%02x:%02x\n",
-               eh->ether_dhost[0], eh->ether_dhost[1], eh->ether_dhost[2],
-               eh->ether_dhost[3], eh->ether_dhost[4], eh->ether_dhost[5]);
-        printf("Source MAC: %02x:%02x:%02x:%02x:%02x:%02x\n",
-               eh->ether_shost[0], eh->ether_shost[1], eh->ether_shost[2],
-               eh->ether_shost[3], eh->ether_shost[4], eh->ether_shost[5]);
-        printf("EtherType: %04x\n", ntohs(eh->ether_type));
-        printf("Payload: %s\n", buffer + sizeof(struct ether_header));
-        printf("Payload length: %ld bytes\n", numbytes - sizeof(struct ether_header));
+        if (eh->ether_dhost[0]) {
+            printf("Received packet:\n");
+            printf("Destination MAC: %02x:%02x:%02x:%02x:%02x:%02x\n",
+                   eh->ether_dhost[0], eh->ether_dhost[1], eh->ether_dhost[2],
+                   eh->ether_dhost[3], eh->ether_dhost[4], eh->ether_dhost[5]);
+            printf("Source MAC: %02x:%02x:%02x:%02x:%02x:%02x\n",
+                   eh->ether_shost[0], eh->ether_shost[1], eh->ether_shost[2],
+                   eh->ether_shost[3], eh->ether_shost[4], eh->ether_shost[5]);
+            printf("EtherType: %04x\n", ntohs(eh->ether_type));
+            printf("Payload: %s\n", buffer + sizeof(struct ether_header));
+            printf("Payload length: %ld bytes\n", numbytes - sizeof(struct ether_header));
+        }
     }
 
     close(sockfd);
