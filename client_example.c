@@ -10,6 +10,7 @@
 #include <linux/if_packet.h>
 
 #define ETHERNET_FRAME_LEN 1518
+#define INTERFACE "enp1s0"
 
 int main() {
     int sockfd;
@@ -27,14 +28,14 @@ int main() {
     }
 
     memset(&if_idx, 0, sizeof(struct ifreq));
-    strncpy(if_idx.ifr_name, "enp1s0", IFNAMSIZ - 1);
+    strncpy(if_idx.ifr_name, INTERFACE, IFNAMSIZ - 1);
     if (ioctl(sockfd, SIOCGIFINDEX, &if_idx) < 0) {
         perror("SIOCGIFINDEX");
         exit(1);
     }
 
     memset(&if_mac, 0, sizeof(struct ifreq));
-    strncpy(if_mac.ifr_name, "enp1s0", IFNAMSIZ - 1);
+    strncpy(if_mac.ifr_name, INTERFACE, IFNAMSIZ - 1);
     if (ioctl(sockfd, SIOCGIFHWADDR, &if_mac) < 0) {
         perror("SIOCGIFHWADDR");
         exit(1);
