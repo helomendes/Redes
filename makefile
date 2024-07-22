@@ -1,6 +1,8 @@
 # Programa
-PROG 	= server
-OBJS 	= server.o
+SERVER		= server
+SERVER_OBJS = server.o
+CLIENT		= client
+CLIENT_OBJS = client.o
 
 # Compilador
 CC		= gcc
@@ -16,16 +18,24 @@ DISTDIR = `basename ${PWD}`
 
 .PHONY: all clean purge dist debug
 
-all: $(PROG)
+all: server
 
 debug: CFLAGS += $(DEBUGFLAGS)
 debug: $(PROG)
 
-%.o: %.c %.h
+server: server.o
+	$(CC) $(CFLAGS) -o $@ $^ $(LFLAGS)
+
+server.o: server_example.c
+	@echo "Gerando server"
 	$(CC) -c $(CFLAGS) -o $@ $<
 
-$(PROG): $(OBJS)
+client: client.o
 	$(CC) $(CFLAGS) -o $@ $^ $(LFLAGS)
+
+client.o: client_example.c
+	@echo "Gerando client"
+	$(CC) -c $(CFLAGS) -o $@ $<
 
 clean:
 	@echo "Limpando sujeira ..."
@@ -33,7 +43,7 @@ clean:
 
 purge:  clean
 	@echo "Limpando tudo ..."
-	@rm -f $(PROG) $(OBJS) core a.out $(DISTDIR) $(DISTDIR).tar
+	@rm -f $(SERVER) $(CLIENT) $(SERVER_OBJS) $(CLIENT_OBJS) core a.out $(DISTDIR) $(DISTDIR).tar
 
 dist: purge
 	@echo "Gerando arquivo de distribuição ($(DISTDIR).tar) ..."

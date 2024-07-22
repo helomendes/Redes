@@ -9,15 +9,15 @@
 #include <arpa/inet.h>
 #include <linux/if_packet.h>
 
-#define ETHERNET_FRAME_LEN 1518
+#define FRAME_LEN 1024
 #define INTERFACE "enp1s0"
 
 int main() {
     int sockfd;
     struct ifreq if_idx;
-    struct ifreq if_mac;
+    //struct ifreq if_mac;
     struct sockaddr_ll socket_address;
-    char sendbuf[ETHERNET_FRAME_LEN];
+    char sendbuf[FRAME_LEN];
     int send_len = 0;
 
     char dest_mac[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff}; // Broadcast address
@@ -34,22 +34,22 @@ int main() {
         exit(1);
     }
 
-    memset(&if_mac, 0, sizeof(struct ifreq));
-    strncpy(if_mac.ifr_name, INTERFACE, IFNAMSIZ - 1);
-    if (ioctl(sockfd, SIOCGIFHWADDR, &if_mac) < 0) {
-        perror("SIOCGIFHWADDR");
-        exit(1);
-    }
+    //memset(&if_mac, 0, sizeof(struct ifreq));
+    //strncpy(if_mac.ifr_name, INTERFACE, IFNAMSIZ - 1);
+    //if (ioctl(sockfd, SIOCGIFHWADDR, &if_mac) < 0) {
+    //    perror("SIOCGIFHWADDR");
+    //    exit(1);
+    //}
 
-    struct ether_header *eh = (struct ether_header *) sendbuf;
-    memset(sendbuf, 0, ETHERNET_FRAME_LEN);
+    //struct ether_header *eh = (struct ether_header *) sendbuf;
+    //memset(sendbuf, 0, ETHERNET_FRAME_LEN);
 
-    memcpy(eh->ether_dhost, dest_mac, 6);
-    memcpy(eh->ether_shost, if_mac.ifr_hwaddr.sa_data, 6);
-    eh->ether_type = htons(ETH_P_IP);
+    //memcpy(eh->ether_dhost, dest_mac, 6);
+    //memcpy(eh->ether_shost, if_mac.ifr_hwaddr.sa_data, 6);
+    //eh->ether_type = htons(ETH_P_IP);
 
-    send_len += sizeof(struct ether_header);
-    strcpy(sendbuf + send_len, "Hello, Ethernet!");
+    //send_len += sizeof(struct ether_header);
+    strcpy(sendbuf, "Hello, Ethernet!");
     send_len += strlen("Hello, Ethernet!");
 
     socket_address.sll_ifindex = if_idx.ifr_ifindex;
