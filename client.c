@@ -1,43 +1,36 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <arpa/inet.h>
 #include <net/if.h>
 #include <net/ethernet.h>
 #include <linux/if_packet.h>
 #include <errno.h>
+#include <string.h>
 
-int cria_raw_socket(char* nome_interface_rede);
+#define FRAME_LEN 1024
+#define INTERFACE "enp2s0"
 
 int main () {
-    int soquete = cria_raw_socket("enp2s0");
-    printf("soquete: %d\n", soquete);
-	if (listen(soquete, 10) == -1) {
-		fprintf(stderr, "Erro ao habilitar pedidos de conexão\n");
-		fprintf(stderr, "%d\n", errno);
-		exit(1);
-	}
-    return 0;
-}
+    //int soquete = cria_raw_socket("INTERFACE");
+    int soquete;
+    char send_buf[FRAME_LEN];
+    int send_len = 0;
 
-int cria_raw_socket(char* nome_interface_rede)
-{
-    int soquete = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
-    if (soquete == -1) {
-        fprintf(stderr, "Erro ao criar socket: Verifique se voce eh root!\n");
+    if ((soquete = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL))) == -1) {
+        perror("Erro ao criar socket");
         exit(1);
     }
 
-    int ifindex = if_nametoindex(nome_interface_rede);
+    strcpy(send_buf, "Testando nova versao");
+    send_len += strlen("Testando nova versao");
 
-    struct sockaddr_ll endereco = {0};
-    endereco.sll_family = AF_PACKET;
-    endereco.sll_protocol = htons(ETH_P_ALL);
-    endereco.sll_ifindex = ifindex;
+    int ifindex = if_nametoindex(INTERFACE);
 
-    //if (bind(soquete, (struct sockaddr*) &endereco, sizeof(endereco)) == -1) {
-    //    fprintf(stderr, "Erro ao fazer bind no socket\n");
-    //    exit(1);
-    //}
+    struct sockaddr_ll sock_addr = {0};
+    sock_addr.sll_family = AF_PACKET;
+    sock_addr.sll_protocol = htons(ETH_P_ALL);
+    sock_addr.sll_ifindex = ifindex;
 
     struct packet_mreq mr = {0};
     mr.mr_ifindex = ifindex;
@@ -48,5 +41,11 @@ int cria_raw_socket(char* nome_interface_rede)
         exit(1);
     }
 
-    return soquete;
+    if (sendto(soquete, send_buf, send_len, 0, (struct sockaddr *) &sock_addr, sizeof(struct sockaddr_ll)) < 0) {
+        perror("sendto");
+        exit(1);
+    }
+
+    close(soquete);
+    return 0;
 }

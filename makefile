@@ -26,14 +26,14 @@ debug: $(PROG)
 server: server.o
 	$(CC) $(CFLAGS) -o $@ $^ $(LFLAGS)
 
-server.o: server_example.c
+server.o: server.c
 	@echo "Gerando server"
 	$(CC) -c $(CFLAGS) -o $@ $<
 
 client: client.o
 	$(CC) $(CFLAGS) -o $@ $^ $(LFLAGS)
 
-client.o: client_example.c
+client.o: client.c
 	@echo "Gerando client"
 	$(CC) -c $(CFLAGS) -o $@ $<
 

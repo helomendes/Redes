@@ -10,6 +10,7 @@
 #include <linux/if_packet.h>
 
 #define FRAME_LEN 1024
+#define INTERFACE "enp1s0"
 
 int main() {
     int sockfd;
@@ -42,7 +43,11 @@ int main() {
 
         //struct ether_header *eh = (struct ether_header *) buffer;
         //if (eh->ether_dhost[0]) {
-        printf("Received packet:\n");
+        if (buffer[0] != '\0') {
+            printf("Received packet:\n");
+            printf("Payload: %s\n", buffer);
+            printf("Payload length: %d bytes\n", numbytes);
+        }
         //printf("Destination MAC: %02x:%02x:%02x:%02x:%02x:%02x\n",
         //       eh->ether_dhost[0], eh->ether_dhost[1], eh->ether_dhost[2],
         //       eh->ether_dhost[3], eh->ether_dhost[4], eh->ether_dhost[5]);
@@ -50,8 +55,6 @@ int main() {
         //       eh->ether_shost[0], eh->ether_shost[1], eh->ether_shost[2],
         //       eh->ether_shost[3], eh->ether_shost[4], eh->ether_shost[5]);
         //printf("EtherType: %04x\n", ntohs(eh->ether_type));
-        printf("Payload: %s\n", buffer);
-        printf("Payload length: %d bytes\n", numbytes);
         //}
     }
 
