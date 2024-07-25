@@ -8,22 +8,26 @@
 #include <errno.h>
 #include <string.h>
 
+#include "packet.h"
+
 #define FRAME_LEN 1024
 #define INTERFACE "enp2s0"
 
 int main () {
-    //int soquete = cria_raw_socket("INTERFACE");
     int soquete;
     char send_buf[FRAME_LEN];
     int send_len = 0;
+    packet_header_t header = cria_header();
+    printf("tamanho do header: %ld\n", sizeof(packet_header_t));
+    exit(1);
 
     if ((soquete = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL))) == -1) {
         perror("Erro ao criar socket");
         exit(1);
     }
 
-    strcpy(send_buf, "Testando nova versao");
-    send_len += strlen("Testando nova versao");
+    memcpy(send_buf, (char*) &header, PACKET_HEADER_SIZE);
+    send_len += PACKET_HEADER_SIZE;
 
     int ifindex = if_nametoindex(INTERFACE);
 

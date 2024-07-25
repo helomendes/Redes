@@ -1,8 +1,8 @@
 # Programa
 SERVER		= server
-SERVER_OBJS = server.o
+SERVER_OBJS = server.o packet.o
 CLIENT		= client
-CLIENT_OBJS = client.o
+CLIENT_OBJS = client.o packet.o
 
 # Compilador
 CC		= gcc
@@ -23,19 +23,22 @@ all: server
 debug: CFLAGS += $(DEBUGFLAGS)
 debug: $(PROG)
 
-server: server.o
+server: $(SERVER_OBJS)
 	$(CC) $(CFLAGS) -o $@ $^ $(LFLAGS)
 
 server.o: server.c
 	@echo "Gerando server"
 	$(CC) -c $(CFLAGS) -o $@ $<
 
-client: client.o
+client: $(CLIENT_OBJS)
 	$(CC) $(CFLAGS) -o $@ $^ $(LFLAGS)
 
 client.o: client.c
 	@echo "Gerando client"
 	$(CC) -c $(CFLAGS) -o $@ $<
+
+packet.o: packet.h packet.c
+	$(CC) $(CFLAGS) -o $@ -c packet.c
 
 clean:
 	@echo "Limpando sujeira ..."

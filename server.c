@@ -8,6 +8,9 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <string.h>
+
+#include "packet.h"
 
 #define NETWORK_INTERFACE "enp1s0"
 #define BUFFER_SIZE 1024
@@ -16,10 +19,10 @@ int cria_raw_socket( char* nome_interface_rede );
 
 int main () {
     int soquete = cria_raw_socket(NETWORK_INTERFACE);
+    int bytes_recebidos;
+    packet_header_t header = {0};
 
-    char* buffer = malloc(BUFFER_SIZE);
-
-    ssize_t bytes_recebidos;
+    char buffer[BUFFER_SIZE];
 
     while (1) {
         bytes_recebidos = recvfrom(soquete, buffer, BUFFER_SIZE, 0, NULL, NULL);
@@ -29,15 +32,16 @@ int main () {
             exit(1);
         }
 
-        if (buffer[0] != '\0') {
-            printf("Bytes recebidos: %ld\n", bytes_recebidos);
-            printf("Payload: %s\n", buffer);
+        if (bytes_recebidos >= sizeof(packet_header_t)) {
+            memcpy(&header, buffer, PACKET_HEADER_SIZE);
+            if (eh_header(header)) {
+                printf("Pacote recebido com sucesso\n");
+                imprime_header(header);
+            }
         }
     }
 
-    free(buffer);
     close(soquete);
-
     return 0;
 }
 
