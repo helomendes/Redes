@@ -12,22 +12,33 @@
 
 #define FRAME_LEN 1024
 #define INTERFACE "enp2s0"
+#define DATA_SIZE 63
 
 int main () {
     int soquete;
     char send_buf[FRAME_LEN];
     int send_len = 0;
     packet_header_t header = cria_header();
-    printf("tamanho do header: %ld\n", sizeof(packet_header_t));
-    exit(1);
+    header.type = 1;
 
     if ((soquete = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL))) == -1) {
         perror("Erro ao criar socket");
         exit(1);
     }
 
-    memcpy(send_buf, (char*) &header, PACKET_HEADER_SIZE);
-    send_len += PACKET_HEADER_SIZE;
+    char data[DATA_SIZE];
+    printf("Insira uma mensagem para ser enviada: ");
+    scanf("%[^\n]", data);
+    getchar();
+    header.size = strlen(data);
+
+    memcpy(send_buf, &header, sizeof(packet_header_t));
+    send_len += sizeof(packet_header_t);
+    strcpy(send_buf + send_len, data);
+    send_len += strlen(data);
+    
+    //strcpy(send_buf, "Testando comunicacoes");
+    //send_len += strlen("Testando comunicacoes");
 
     int ifindex = if_nametoindex(INTERFACE);
 
@@ -46,6 +57,7 @@ int main () {
     }
 
     if (sendto(soquete, send_buf, send_len, 0, (struct sockaddr *) &sock_addr, sizeof(struct sockaddr_ll)) < 0) {
+        printf("%d\n", errno);
         perror("sendto");
         exit(1);
     }
