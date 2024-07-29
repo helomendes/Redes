@@ -12,16 +12,23 @@
 
 #include "packet.h"
 
-#define NETWORK_INTERFACE   "enp1s0"
 #define DATA_SIZE           63
 #define BUFFER_SIZE         128
 
 int cria_raw_socket( char* nome_interface_rede );
 
-int main () {
-    int soquete = cria_raw_socket(NETWORK_INTERFACE);
+int main (int argc, char **argv) {
+    if (argc != 2) {
+        printf("Erro: execucao incorreta\n");
+        printf("Exemplo: sudo ./server interface_de_rede\n");
+        exit(1);
+    }
+
     int bytes_recebidos;
     int bytes_lidos;
+    char interface[8];
+    strncpy(interface, argv[1], 8);
+    int soquete = cria_raw_socket(interface);
     struct packet_header_t header;
 
     char buffer[BUFFER_SIZE];
