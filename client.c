@@ -27,6 +27,7 @@ int main (int argc, char **argv) {
     char interface[8];
     strncpy(interface, argv[1], 8);
     struct packet_header_t header = cria_header();
+    header.type = DADOS;
 
     if ((soquete = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL))) == -1) {
         perror("Erro ao criar socket");
@@ -43,6 +44,7 @@ int main (int argc, char **argv) {
     send_len += bytes_escritos;
     strcpy(send_buf + send_len, data);
     send_len += strlen(data);
+    escreve_crc(send_buf, send_len);
 
     int ifindex = if_nametoindex(interface);
 

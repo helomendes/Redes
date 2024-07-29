@@ -3,21 +3,28 @@
 
 #include <stdint.h>
 
-#define INIT_MARKER (unsigned char) 126
-#define SIZEOF_INITMARKER 1
+#define INIT_MARKER 0b01111110
+#define ACK         0b00000
+#define NACK        0b00001
+#define LISTA       0b01010
+#define BAIXAR      0b01011
+#define MOSTRAR     0b10000
+#define DESCRITOR   0b10001
+#define DADOS       0b10010
+#define FIM         0b11110
+#define ERRO        0b11111
 
+typedef enum {
+    ACESSO_NEGADO = 1,
+    NAO_ENCONTRADO,
+    DISCO_CHEIO
+} ERROS;
+
+#define SIZEOF_INITMARKER 1
 #define MAX_SIZE_VALUE (unsigned char) 63
 #define MAX_SEQUENCE_VALUE (unsigned char) 31
 #define MAX_TYPE_VALUE (unsigned char) 31
 
-    // como fazer com o tamanho da mensagem sendo variavel??
-    // tipo, o header vai ser recebido, e dai n bytes do buffer tem que ser
-    // "colados" no espaco de uma estrutura packet_t, mas como fazer isso
-    // com um tamanho de mensagem variado? todos os packet_t NA MAQUINA vao
-    // ter tamanho maximo? nao funciona porque o crc vai estar no lugar errado
-    // a menos que cole bytes - tamanho do crc e dps cole o crc na posicao
-    // correta
-    // ideia: fazer um header somente pro comeco, ja que essa parte eh imutavel
 struct packet_header_t {
     unsigned char init_marker;
     unsigned char size:6;
@@ -34,5 +41,9 @@ void imprime_header(struct packet_header_t p);
 unsigned int escreve_header(struct packet_header_t p, char* buffer);
 
 int le_header(struct packet_header_t *p, char* buffer);
+
+void escreve_crc(char *buffer, int bytes);
+
+int crc_valido(char *buffer, int bytes);
 
 #endif
