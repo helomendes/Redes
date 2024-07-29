@@ -1,8 +1,8 @@
 # Programa
 SERVER		= server
-SERVER_OBJS = server.o packet.o
+SERVER_OBJS = server.o packet.o socket.o
 CLIENT		= client
-CLIENT_OBJS = client.o packet.o
+CLIENT_OBJS = client.o packet.o socket.o
 
 # Compilador
 CC		= gcc
@@ -39,6 +39,9 @@ client.o: client.c
 
 packet.o: packet.h packet.c
 	$(CC) $(CFLAGS) -o $@ -c packet.c
+
+socket.o: socket.h socket.c
+	$(CC) $(CFLAGS) -o $@ -c socket.c
 
 clean:
 	@echo "Limpando sujeira ..."
