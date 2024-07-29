@@ -49,10 +49,11 @@ int le_header(struct packet_header_t *p, char* buffer)
     return SIZEOF_INITMARKER + sizeof(unsigned short);
 }
 
-void escreve_crc(char *buffer, int bytes)
+unsigned int escreve_crc(char *buffer, int bytes)
 {
     unsigned char crc = 15;
     memcpy(buffer + bytes, &crc, sizeof(unsigned char));
+    return sizeof(unsigned char);
 }
 
 int crc_valido(char *buffer, int bytes)

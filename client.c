@@ -44,7 +44,7 @@ int main (int argc, char **argv) {
     send_len += bytes_escritos;
     strcpy(send_buf + send_len, data);
     send_len += strlen(data);
-    escreve_crc(send_buf, send_len);
+    send_len += escreve_crc(send_buf, send_len);
 
     int ifindex = if_nametoindex(interface);
 

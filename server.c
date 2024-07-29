@@ -54,7 +54,7 @@ int main (int argc, char **argv) {
         if (bytes_recebidos >= sizeof(struct packet_header_t)) {
             bytes_lidos = le_header(&header, buffer);
             if (bytes_lidos) {
-                if (! crc_valido(buffer, bytes_lidos + header.size)) {
+                if (!crc_valido(buffer, bytes_lidos + header.size)) {
                     // erro no crc
                     printf("Erro detectado pelo crc");
                 } else {

@@ -42,7 +42,7 @@ unsigned int escreve_header(struct packet_header_t p, char* buffer);
 
 int le_header(struct packet_header_t *p, char* buffer);
 
-void escreve_crc(char *buffer, int bytes);
+unsigned int escreve_crc(char *buffer, int bytes);
 
 int crc_valido(char *buffer, int bytes);
 
