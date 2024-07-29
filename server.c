@@ -14,14 +14,15 @@
 
 #define NETWORK_INTERFACE   "enp1s0"
 #define DATA_SIZE           63
-#define BUFFER_SIZE         sizeof(packet_header_t) + DATA_SIZE + 8
+#define BUFFER_SIZE         128
 
 int cria_raw_socket( char* nome_interface_rede );
 
 int main () {
     int soquete = cria_raw_socket(NETWORK_INTERFACE);
     int bytes_recebidos;
-    packet_header_t header = {0};
+    int bytes_lidos;
+    struct packet_header_t header;
 
     char buffer[BUFFER_SIZE];
     char data[DATA_SIZE];
@@ -34,15 +35,15 @@ int main () {
             exit(1);
         }
 
-        if (bytes_recebidos >= sizeof(packet_header_t)) {
-            memcpy(&header, buffer, sizeof(packet_header_t));
-            if (eh_header(header)) {
+        if (bytes_recebidos >= sizeof(struct packet_header_t)) {
+            //memcpy(&header, buffer, sizeof(packet_header_t));
+            bytes_lidos = le_header(&header, buffer);
+            if (bytes_lidos) {
                 printf("Pacote recebido com sucesso\n");
                 imprime_header(header);
-                memcpy(&data, buffer + sizeof(packet_header_t), header.size);
+                memcpy(&data, buffer + bytes_lidos, header.size);
                 printf("%s\n", data);
             }
-
         }
     }
 

@@ -10,16 +10,23 @@
 
 #include "packet.h"
 
-#define FRAME_LEN 1024
-#define INTERFACE "enp2s0"
+#define FRAME_LEN 128
 #define DATA_SIZE 63
 
-int main () {
+int main (int argc, char **argv) {
+    if (argc != 2) {
+        printf("Erro: execucao incorreta\n");
+        printf("Exemplo: sudo ./client interface_de_rede\n");
+        exit(1);
+    }
+
     int soquete;
-    char send_buf[FRAME_LEN];
     int send_len = 0;
-    packet_header_t header = cria_header();
-    header.type = 1;
+    unsigned int bytes_escritos;
+    char send_buf[FRAME_LEN];
+    char interface[8];
+    strncpy(interface, argv[1], 8);
+    struct packet_header_t header = cria_header();
 
     if ((soquete = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL))) == -1) {
         perror("Erro ao criar socket");
@@ -32,15 +39,12 @@ int main () {
     getchar();
     header.size = strlen(data);
 
-    memcpy(send_buf, &header, sizeof(packet_header_t));
-    send_len += sizeof(packet_header_t);
+    bytes_escritos = escreve_header(header, send_buf);
+    send_len += bytes_escritos;
     strcpy(send_buf + send_len, data);
     send_len += strlen(data);
-    
-    //strcpy(send_buf, "Testando comunicacoes");
-    //send_len += strlen("Testando comunicacoes");
 
-    int ifindex = if_nametoindex(INTERFACE);
+    int ifindex = if_nametoindex(interface);
 
     struct sockaddr_ll sock_addr = {0};
     sock_addr.sll_family = AF_PACKET;
