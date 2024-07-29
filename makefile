@@ -18,7 +18,7 @@ DISTDIR = `basename ${PWD}`
 
 .PHONY: all clean purge dist debug
 
-all: server
+all: server client
 
 debug: CFLAGS += $(DEBUGFLAGS)
 debug: $(PROG)

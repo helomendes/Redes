@@ -15,7 +15,7 @@
 
 int cria_raw_socket( char* nome_interface_rede );
 void eh_diretorio( char *path );
-void eh_interface( char *interface );
+int eh_interface( char *interface );
 
 int main (int argc, char **argv) {
     if (argc != 3) {
@@ -26,11 +26,12 @@ int main (int argc, char **argv) {
 
     int bytes_recebidos;
     int bytes_lidos;
+    int bytes_enviados;
     char interface[8];
     char videos_dir[PATH_MAX];
 
     strncpy(interface, argv[1], 8);
-    eh_interface(interface);
+    int ifindex = eh_interface(interface);
     strncpy(videos_dir, argv[2], PATH_MAX);
     eh_diretorio(videos_dir);
 
@@ -59,6 +60,16 @@ int main (int argc, char **argv) {
                     memcpy(&data, buffer + bytes_lidos, header.size);
                     data[header.size] = '\0';
                     printf("%s\n", data);
+                    printf("respondendo...\n");
+                    unsigned char lixo[16];
+                    header.size = 16;
+                    header.type = ACK;
+                    header.sequence = 2;
+                    bytes_enviados = escreve_header(header, buffer);
+                    memcpy(buffer, lixo, 16);
+                    bytes_enviados += header.size;
+                    bytes_enviados += escreve_crc(buffer, bytes_enviados);
+                    send_packet(soquete, buffer, bytes_enviados, ifindex);
                 }
             }
         }
@@ -68,12 +79,15 @@ int main (int argc, char **argv) {
     return 0;
 }
 
-void eh_interface(char *path)
+int eh_interface(char *path)
 {
-    if (!if_nametoindex(path)) {
+    int index = if_nametoindex(path);
+    if (! index) {
         fprintf(stderr, "Erro, interface desconhecida");
         exit(1);
     }
+
+    return index;
 }
 
 void eh_diretorio(char *interface) {
