@@ -41,6 +41,7 @@ int cria_raw_socket(char* nome_interface_rede)
 
     return soquete;
 }
+
 void send_packet(int socket, char* buffer, int bytes, int ifindex)
 {
     struct sockaddr_ll sock_addr = {0};
@@ -49,7 +50,6 @@ void send_packet(int socket, char* buffer, int bytes, int ifindex)
     sock_addr.sll_ifindex = ifindex;
 
     if (sendto(socket, buffer, bytes, 0, (struct sockaddr *) &sock_addr, sizeof(struct sockaddr_ll)) < 0) {
-        printf("%d\n", errno);
         perror("sendto");
         exit(1);
     }

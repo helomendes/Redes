@@ -29,6 +29,7 @@ int main (int argc, char **argv) {
     int bytes_enviados;
     char interface[8];
     char videos_dir[PATH_MAX];
+    char lixo[16];
 
     strncpy(interface, argv[1], 8);
     int ifindex = eh_interface(interface);
@@ -60,13 +61,13 @@ int main (int argc, char **argv) {
                     memcpy(&data, buffer + bytes_lidos, header.size);
                     data[header.size] = '\0';
                     printf("%s\n", data);
+
                     printf("respondendo...\n");
-                    unsigned char lixo[16];
-                    header.size = 16;
+                    header.size = sizeof(lixo);
                     header.type = ACK;
                     header.sequence = 2;
                     bytes_enviados = escreve_header(header, buffer);
-                    memcpy(buffer, lixo, 16);
+                    memcpy(buffer + bytes_enviados, lixo, header.size);
                     bytes_enviados += header.size;
                     bytes_enviados += escreve_crc(buffer, bytes_enviados);
                     send_packet(soquete, buffer, bytes_enviados, ifindex);

@@ -19,13 +19,12 @@ int main (int argc, char **argv) {
         exit(1);
     }
 
-    int send_len = 0;
-    int bytes_recebidos, bytes_lidos;
+    int send_len, bytes_recebidos, bytes_lidos;
     char buffer[FRAME_LEN];
     char interface[8];
 
-    int ifindex = eh_interface(interface);
     strncpy(interface, argv[1], 8);
+    int ifindex = eh_interface(interface);
     struct packet_header_t header = cria_header();
     header.type = DADOS;
 
@@ -37,11 +36,15 @@ int main (int argc, char **argv) {
     getchar();
     header.size = strlen(data);
 
-    send_len += escreve_header(header, buffer);
+    send_len = escreve_header(header, buffer);
     strcpy(buffer + send_len, data);
     send_len += strlen(data);
     send_len += escreve_crc(buffer, send_len);
 
+    if (send_len < 14) {
+        fprintf(stderr, "Mensagem curta demais para ser enviada (tamanho minimo: %d, tamanho da mensagem: %d)\n", 14, send_len);
+        exit(1);
+    }
     send_packet(soquete, buffer, send_len, ifindex);
 
     while (1) {
@@ -52,17 +55,19 @@ int main (int argc, char **argv) {
             exit(1);
         }
 
-        if (bytes_recebidos >= sizeof(struct packet_header_t)) {
+        if (bytes_recebidos >= SIZEOF_SMALLEST_PACKET) {
             bytes_lidos = le_header(&header, buffer);
             if (bytes_lidos) {
                 if (!crc_valido(buffer, bytes_lidos + header.size)) {
                     // erro no crc
                     printf("Erro detectado pelo crc");
+                    exit(1);
                 } else {
                     printf("Pacote recebido com sucesso\n");
                     imprime_header(header);
                     memcpy(&data, buffer + bytes_lidos, header.size);
                     data[header.size] = '\0';
+                    break;
                 }
             }
         }
@@ -72,11 +77,11 @@ int main (int argc, char **argv) {
     return 0;
 }
 
-int eh_interface(char *path)
+int eh_interface(char *interface)
 {
-    int index = if_nametoindex(path);
+    int index = if_nametoindex(interface);
     if (!index) {
-        fprintf(stderr, "Erro, interface desconhecida");
+        fprintf(stderr, "Erro, interface desconhecida: %s\n", interface);
         exit(1);
     }
 
