@@ -14,9 +14,9 @@ struct packet_header_t create_header()
     return p;
 }
 
-int is_header(struct packet_header_t p)
+int is_packet(char *buffer, int received_len)
 {
-    return (p.init_marker == INIT_MARKER);
+    return ((buffer[0] == INIT_MARKER) && (received_len >= SIZEOF_SMALLEST_PACKET));
 }
 
 void print_header(struct packet_header_t p)
@@ -37,8 +37,6 @@ unsigned int write_header(struct packet_header_t p, char* buffer)
 int read_header(struct packet_header_t *p, char* buffer)
 {
     memcpy(&(p->init_marker), buffer, SIZEOF_INITMARKER);
-    if (! is_header(*p))
-        return 0;
     unsigned short size_sequence_type;
     memcpy(&size_sequence_type, buffer + SIZEOF_INITMARKER, sizeof(unsigned short));
 

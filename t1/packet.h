@@ -37,7 +37,7 @@ struct packet_header_t {
 
 struct packet_header_t create_header();
 
-int is_header(struct packet_header_t p);
+int is_packet(char *buffer, int received_len);
 
 void print_header(struct packet_header_t p);
 

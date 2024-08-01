@@ -46,27 +46,25 @@ int main (int argc, char **argv) {
 
         if (received_len >= SIZEOF_SMALLEST_PACKET) {
             read_len = read_header(&header, buffer);
-            if (read_len) {
-                if (! valid_crc(buffer, read_len + header.size)) {
-                    // erro no crc
-                    printf("Erro detectado pelo crc");
-                } else {
-                    printf("Pacote recebido com sucesso\n");
-                    print_header(header);
-                    memcpy(&data, buffer + read_len, header.size);
-                    data[header.size] = '\0';
-                    printf("%s\n", data);
+            if (! valid_crc(buffer, read_len + header.size)) {
+                // erro no crc
+                printf("Erro detectado pelo crc");
+            } else {
+                printf("Pacote recebido com sucesso\n");
+                print_header(header);
+                memcpy(&data, buffer + read_len, header.size);
+                data[header.size] = '\0';
+                printf("%s\n", data);
 
-                    printf("respondendo...\n");
-                    header.size = sizeof(garbage);
-                    header.type = ACK;
-                    header.sequence = 2;
-                    send_len = write_header(header, buffer);
-                    memcpy(buffer + send_len, garbage, header.size);
-                    send_len += header.size;
-                    send_len += write_crc(buffer, send_len);
-                    send_packet(sockfd, buffer, send_len, ifindex);
-                }
+                printf("respondendo...\n");
+                header.size = sizeof(garbage);
+                header.type = ACK;
+                header.sequence = 2;
+                send_len = write_header(header, buffer);
+                memcpy(buffer + send_len, garbage, header.size);
+                send_len += header.size;
+                send_len += write_crc(buffer, send_len);
+                send_packet(sockfd, buffer, send_len, ifindex);
             }
         }
     }
