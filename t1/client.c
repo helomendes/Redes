@@ -34,6 +34,8 @@ int main ( int argc, char **argv ) {
     char data[DATA_SIZE];
     while (1) {
         header.size = read_message(data);
+        header.sequence = header.sequence + 1;
+
         send_len = write_header(header, buffer);
         strcpy(buffer + send_len, data);
         send_len += strlen(data);
@@ -46,25 +48,28 @@ int main ( int argc, char **argv ) {
 
         send_packet(sockfd, buffer, send_len, ifindex);
 
-        received_len = recvfrom(sockfd, buffer, FRAME_LEN, 0, NULL, NULL);
-        if (received_len < 0) {
-            perror("erro em recvfrom");
-            close(sockfd);
-            exit(1);
-        }
-
-        if (is_packet(buffer, received_len)) {
-            read_len = read_header(&header, buffer);
-            if (! valid_crc(buffer, read_len + header.size)) {
-                // erro no crc
-                printf("Erro detectado pelo crc");
+        while (1) {
+            received_len = recvfrom(sockfd, buffer, FRAME_LEN, 0, NULL, NULL);
+            if (received_len < 0) {
+                perror("erro em recvfrom");
+                close(sockfd);
                 exit(1);
-            } else {
-                printf("Pacote recebido com sucesso\n");
-                print_header(header);
-                memcpy(&data, buffer + read_len, header.size);
-                data[header.size] = '\0';
-                printf("%s\n", data);
+            }
+
+            if (is_packet(buffer, received_len)) {
+                read_len = read_header(&header, buffer);
+                if (! valid_crc(buffer, read_len + header.size)) {
+                    // erro no crc
+                    printf("Erro detectado pelo crc");
+                    exit(1);
+                } else {
+                    printf("Pacote recebido com sucesso\n");
+                    print_header(header);
+                    memcpy(&data, buffer + read_len, header.size);
+                    data[header.size] = '\0';
+                    printf("%d %s\n", data[0], data);
+                    break;
+                }
             }
         }
     }

@@ -24,7 +24,7 @@ int main (int argc, char **argv) {
     }
 
     int received_len, read_len, send_len;
-    char interface[8], garbage[16];
+    char interface[8];
 
     strncpy(interface, argv[1], 8);
     int ifindex = get_index(interface);
@@ -55,10 +55,9 @@ int main (int argc, char **argv) {
                 printf("%s\n", data);
 
                 header.size = read_message(data);
-                header.type = DATA;
                 header.sequence = header.sequence+1;
                 send_len = write_header(header, buffer);
-                memcpy(buffer + send_len, garbage, header.size);
+                memcpy(buffer + send_len, data, header.size);
                 send_len += header.size;
                 send_len += write_crc(buffer, send_len);
 
