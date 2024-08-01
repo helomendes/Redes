@@ -48,8 +48,8 @@ int main (int argc, char **argv) {
                 // erro no crc
                 printf("Erro detectado pelo crc");
             } else {
-                printf("Pacote recebido com sucesso\n");
-                print_header(header);
+                //printf("Pacote recebido com sucesso\n");
+                //print_header(header);
                 memcpy(&data, buffer + read_len, header.size);
                 data[header.size] = '\0';
                 printf("%s\n", data);
@@ -88,7 +88,7 @@ int get_index( char *interface )
 
 int read_message( char *message )
 {
-    printf("Insira uma mensagem para ser enviada: ");
+    printf("server: ");
     scanf("%[^\n]", message);
     getchar();
     return strlen(message);

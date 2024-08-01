@@ -63,11 +63,11 @@ int main ( int argc, char **argv ) {
                     printf("Erro detectado pelo crc");
                     exit(1);
                 } else {
-                    printf("Pacote recebido com sucesso\n");
-                    print_header(header);
+                    //printf("Pacote recebido com sucesso\n");
+                    //print_header(header);
                     memcpy(&data, buffer + read_len, header.size);
                     data[header.size] = '\0';
-                    printf("%d %s\n", data[0], data);
+                    printf("server: %s\n", data);
                     break;
                 }
             }
@@ -91,7 +91,7 @@ int get_index( char *interface )
 
 int read_message( char *message )
 {
-    printf("Insira uma mensagem para ser enviada: ");
+    printf("client: ");
     scanf("%[^\n]", message);
     getchar();
     return strlen(message);
