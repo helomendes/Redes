@@ -7,6 +7,11 @@
 #include "packet.h"
 #include "socket.h"
 
+#define ANSI_COLOR_YELLOW  "\x1b[33m"
+#define ANSI_COLOR_GREEN   "\x1b[32m"
+#define ANSI_COLOR_BLUE    "\x1b[34m"
+#define ANSI_COLOR_RESET   "\x1b[0m"
+
 #define FRAME_LEN 128
 #define DATA_SIZE 63
 
@@ -67,7 +72,7 @@ int main ( int argc, char **argv ) {
                     //print_header(header);
                     memcpy(&data, buffer + read_len, header.size);
                     data[header.size] = '\0';
-                    printf("server: %s\n", data);
+                    printf(ANSI_COLOR_YELLOW "server: %s" ANSI_COLOR_RESET "\n", data);
                     break;
                 }
             }
@@ -91,7 +96,7 @@ int get_index( char *interface )
 
 int read_message( char *message )
 {
-    printf("client: ");
+    printf(ANSI_COLOR_BLUE "client: " ANSI_COLOR_RESET);
     scanf("%[^\n]", message);
     getchar();
     return strlen(message);
