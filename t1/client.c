@@ -37,47 +37,45 @@ int main ( int argc, char **argv ) {
     int sockfd = create_raw_socket(interface);
 
     char data[DATA_SIZE];
-    while (1) {
-        header.size = read_message(data);
-        header.sequence = header.sequence + 1;
+    header.size = read_message(data);
+    header.type = LIST;
 
-        send_len = write_header(header, buffer);
-        strcpy(buffer + send_len, data);
-        send_len += strlen(data);
-        send_len += write_crc(buffer, send_len);
+    send_len = write_header(header, buffer);
+    strcpy(buffer + send_len, data);
+    send_len += strlen(data);
+    send_len += write_crc(buffer, send_len);
 
-        if (send_len < 14) {
-            fprintf(stderr, "Mensagem curta demais para ser enviada (tamanho minimo: %d, tamanho da mensagem: %d)\n", 14, send_len);
-            exit(1);
-        }
-
-        send_packet(sockfd, buffer, send_len, ifindex);
-
-        while (1) {
-            received_len = recvfrom(sockfd, buffer, FRAME_LEN, 0, NULL, NULL);
-            if (received_len < 0) {
-                perror("erro em recvfrom");
-                close(sockfd);
-                exit(1);
-            }
-
-            if (is_packet(buffer, received_len)) {
-                read_len = read_header(&header, buffer);
-                if (! valid_crc(buffer, read_len + header.size)) {
-                    // erro no crc
-                    printf("Erro detectado pelo crc");
-                    exit(1);
-                } else {
-                    //printf("Pacote recebido com sucesso\n");
-                    //print_header(header);
-                    memcpy(&data, buffer + read_len, header.size);
-                    data[header.size] = '\0';
-                    printf(ANSI_COLOR_YELLOW "server: %s" ANSI_COLOR_RESET "\n", data);
-                    break;
-                }
-            }
-        }
+    if (send_len < 14) {
+        fprintf(stderr, "Mensagem curta demais para ser enviada (tamanho minimo: %d, tamanho da mensagem: %d)\n", 14, send_len);
+        exit(1);
     }
+
+    send_packet(sockfd, buffer, send_len, ifindex);
+
+    //while (1) {
+    //    received_len = recvfrom(sockfd, buffer, FRAME_LEN, 0, NULL, NULL);
+    //    if (received_len < 0) {
+    //        perror("erro em recvfrom");
+    //        close(sockfd);
+    //        exit(1);
+    //    }
+
+    //    if (is_packet(buffer, received_len)) {
+    //        read_len = read_header(&header, buffer);
+    //        if (! valid_crc(buffer, read_len + header.size)) {
+    //            // erro no crc
+    //            printf("Erro detectado pelo crc");
+    //            exit(1);
+    //        } else {
+    //            //printf("Pacote recebido com sucesso\n");
+    //            //print_header(header);
+    //            memcpy(&data, buffer + read_len, header.size);
+    //            data[header.size] = '\0';
+    //            //printf(ANSI_COLOR_YELLOW "server: %s" ANSI_COLOR_RESET "\n", data);
+    //            break;
+    //        }
+    //    }
+    //}
 
     close(sockfd);
     return 0;

@@ -18,7 +18,7 @@ DISTDIR = `basename ${PWD}`
 
 .PHONY: all clean purge dist debug
 
-all: server special_server client
+all: server client
 
 debug: CFLAGS += $(DEBUGFLAGS)
 debug: $(PROG)
@@ -28,13 +28,6 @@ server: $(SERVER_OBJS)
 
 server.o: server.c
 	@echo "Gerando server"
-	$(CC) -c $(CFLAGS) -o $@ $<
-
-special_server: special_server.o packet.o socket.o
-	$(CC) $(CFLAGS) -o $@ $^ $(LFLAGS)
-
-special_server.o: special_server.c
-	@echo "Gerando server especial"
 	$(CC) -c $(CFLAGS) -o $@ $<
 
 client: $(CLIENT_OBJS)

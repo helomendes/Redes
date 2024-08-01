@@ -15,6 +15,7 @@
 
 void is_dir( char *path );
 int get_index( char *interface );
+void send_video_list( char *buffer, struct packet_header_t header, char *videos_dir );
 
 int main (int argc, char **argv) {
     if (argc != 3) {
@@ -48,13 +49,18 @@ int main (int argc, char **argv) {
             read_len = read_header(&header, buffer);
             if (! valid_crc(buffer, read_len + header.size)) {
                 // erro no crc
+                // mandar um nack
                 printf("Erro detectado pelo crc");
             } else {
-                printf("Pacote recebido com sucesso\n");
-                print_header(header);
+                //printf("Pacote recebido com sucesso\n");
+                //print_header(header);
                 memcpy(&data, buffer + read_len, header.size);
                 data[header.size] = '\0';
-                printf("%s\n", data);
+                //printf("%s\n", data);
+
+                if (header.type == LIST) {
+                    send_video_list(buffer, header, videos_dir);
+                }
 
                 printf("respondendo...\n");
                 header.size = sizeof(garbage);
@@ -91,4 +97,18 @@ void is_dir( char *interface ) {
         fprintf(stderr, "Erro, caminho fornecido nao eh um diretorio\n");
         exit(1);
     }
+}
+
+void send_video_list( char *buffer, struct packet_header_t header, char *videos_dir )
+{
+    DIR *dp = opendir(videos_dir);
+    struct dirent *ep;
+    if (! dp) {
+        fprintf(stderr, "Falha ao abrir o diretorio %s\n", videos_dir);
+        exit(1);
+    }
+    while ((ep = readdir(dp)) != NULL)
+        printf("%s\n", ep->d_name);
+
+    closedir(dp);
 }
