@@ -3,7 +3,7 @@
 
 #include "packet.h"
 
-struct packet_header_t cria_header()
+struct packet_header_t create_header()
 {
     struct packet_header_t p = {0};
     p.init_marker = INIT_MARKER;
@@ -14,19 +14,19 @@ struct packet_header_t cria_header()
     return p;
 }
 
-int eh_header(struct packet_header_t p)
+int is_header(struct packet_header_t p)
 {
     return (p.init_marker == INIT_MARKER);
 }
 
-void imprime_header(struct packet_header_t p)
+void print_header(struct packet_header_t p)
 {
     printf("size: %d\n", p.size);
     printf("sequence: %d\n", p.sequence);
     printf("type: %d\n", p.type);
 }
 
-unsigned int escreve_header(struct packet_header_t p, char* buffer)
+unsigned int write_header(struct packet_header_t p, char* buffer)
 {
     unsigned short size_sequence_type = (p.size) + (p.sequence << 6) + (p.type << 11);
     memcpy(buffer, &(p.init_marker), sizeof(SIZEOF_INITMARKER));
@@ -34,10 +34,10 @@ unsigned int escreve_header(struct packet_header_t p, char* buffer)
     return SIZEOF_INITMARKER + sizeof(unsigned short);
 }
 
-int le_header(struct packet_header_t *p, char* buffer)
+int read_header(struct packet_header_t *p, char* buffer)
 {
     memcpy(&(p->init_marker), buffer, SIZEOF_INITMARKER);
-    if (!eh_header(*p))
+    if (! is_header(*p))
         return 0;
     unsigned short size_sequence_type;
     memcpy(&size_sequence_type, buffer + SIZEOF_INITMARKER, sizeof(unsigned short));
@@ -49,14 +49,14 @@ int le_header(struct packet_header_t *p, char* buffer)
     return SIZEOF_INITMARKER + sizeof(unsigned short);
 }
 
-unsigned int escreve_crc(char *buffer, int bytes)
+unsigned int write_crc(char *buffer, int bytes)
 {
     unsigned char crc = 15;
     memcpy(buffer + bytes, &crc, sizeof(unsigned char));
     return sizeof(unsigned char);
 }
 
-int crc_valido(char *buffer, int bytes)
+int valid_crc(char *buffer, int bytes)
 {
     unsigned char crc;
     memcpy(&crc, buffer + bytes, sizeof(unsigned char));

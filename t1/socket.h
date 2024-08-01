@@ -1,8 +1,8 @@
 #ifndef SOCKET_H_
 #define SOCKET_H_
 
-int cria_raw_socket(char *nome_interface_rede);
+int create_raw_socket(char *interface);
 
-void send_packet(int socket, char* buffer, int bytes, int ifindex);
+void send_packet(int sockfd, char* buffer, int bytes, int ifindex);
 
 #endif

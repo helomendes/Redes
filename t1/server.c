@@ -10,12 +10,11 @@
 #include "packet.h"
 #include "socket.h"
 
-#define DATA_SIZE           63
-#define BUFFER_SIZE         128
+#define DATA_SIZE       63
+#define BUFFER_SIZE     128
 
-int cria_raw_socket( char* nome_interface_rede );
-void eh_diretorio( char *path );
-int eh_interface( char *interface );
+void is_dir( char *path );
+int get_index( char *interface );
 
 int main (int argc, char **argv) {
     if (argc != 3) {
@@ -24,65 +23,61 @@ int main (int argc, char **argv) {
         exit(1);
     }
 
-    int bytes_recebidos;
-    int bytes_lidos;
-    int bytes_enviados;
-    char interface[8];
-    char videos_dir[PATH_MAX];
-    char lixo[16];
+    int received_len, read_len, send_len;
+    char interface[8], videos_dir[PATH_MAX], garbage[16];
 
     strncpy(interface, argv[1], 8);
-    int ifindex = eh_interface(interface);
+    int ifindex = get_index(interface);
     strncpy(videos_dir, argv[2], PATH_MAX);
-    eh_diretorio(videos_dir);
+    is_dir(videos_dir);
 
-    int soquete = cria_raw_socket(interface);
+    int sockfd = create_raw_socket(interface);
     struct packet_header_t header;
 
     char buffer[BUFFER_SIZE];
     char data[DATA_SIZE];
     while (1) {
-        bytes_recebidos = recvfrom(soquete, buffer, BUFFER_SIZE, 0, NULL, NULL);
-        if (bytes_recebidos < 0) {
+        received_len = recvfrom(sockfd, buffer, BUFFER_SIZE, 0, NULL, NULL);
+        if (received_len < 0) {
             perror("erro em recvfrom");
-            close(soquete);
+            close(sockfd);
             exit(1);
         }
 
-        if (bytes_recebidos >= sizeof(struct packet_header_t)) {
-            bytes_lidos = le_header(&header, buffer);
-            if (bytes_lidos) {
-                if (!crc_valido(buffer, bytes_lidos + header.size)) {
+        if (received_len >= SIZEOF_SMALLEST_PACKET) {
+            read_len = read_header(&header, buffer);
+            if (read_len) {
+                if (! valid_crc(buffer, read_len + header.size)) {
                     // erro no crc
                     printf("Erro detectado pelo crc");
                 } else {
                     printf("Pacote recebido com sucesso\n");
-                    imprime_header(header);
-                    memcpy(&data, buffer + bytes_lidos, header.size);
+                    print_header(header);
+                    memcpy(&data, buffer + read_len, header.size);
                     data[header.size] = '\0';
                     printf("%s\n", data);
 
                     printf("respondendo...\n");
-                    header.size = sizeof(lixo);
+                    header.size = sizeof(garbage);
                     header.type = ACK;
                     header.sequence = 2;
-                    bytes_enviados = escreve_header(header, buffer);
-                    memcpy(buffer + bytes_enviados, lixo, header.size);
-                    bytes_enviados += header.size;
-                    bytes_enviados += escreve_crc(buffer, bytes_enviados);
-                    send_packet(soquete, buffer, bytes_enviados, ifindex);
+                    send_len = write_header(header, buffer);
+                    memcpy(buffer + send_len, garbage, header.size);
+                    send_len += header.size;
+                    send_len += write_crc(buffer, send_len);
+                    send_packet(sockfd, buffer, send_len, ifindex);
                 }
             }
         }
     }
 
-    close(soquete);
+    close(sockfd);
     return 0;
 }
 
-int eh_interface(char *path)
+int get_index( char *interface )
 {
-    int index = if_nametoindex(path);
+    int index = if_nametoindex(interface);
     if (! index) {
         fprintf(stderr, "Erro, interface desconhecida");
         exit(1);
@@ -91,7 +86,7 @@ int eh_interface(char *path)
     return index;
 }
 
-void eh_diretorio(char *interface) {
+void is_dir( char *interface ) {
     struct stat dir_stats;
     stat(interface, &dir_stats);
     if (!S_ISDIR(dir_stats.st_mode)) {

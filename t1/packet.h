@@ -6,19 +6,19 @@
 #define INIT_MARKER 0b01111110
 #define ACK         0b00000
 #define NACK        0b00001
-#define LISTA       0b01010
-#define BAIXAR      0b01011
-#define MOSTRAR     0b10000
-#define DESCRITOR   0b10001
-#define DADOS       0b10010
-#define FIM         0b11110
-#define ERRO        0b11111
+#define LIST        0b01010
+#define DOWNLOAD    0b01011
+#define SHOW        0b10000
+#define DESCRIPTOR  0b10001
+#define DATA        0b10010
+#define END         0b11110
+#define ERROR       0b11111
 
 typedef enum {
-    ACESSO_NEGADO = 1,
-    NAO_ENCONTRADO,
-    DISCO_CHEIO
-} ERROS;
+    ACCESS_DENIED = 1,
+    NOT_FOUND,
+    DISK_FULL
+} ERRORS;
 
 #define SIZEOF_INITMARKER 1
 #define SIZEOF_SMALLEST_PACKET 14
@@ -35,18 +35,18 @@ struct packet_header_t {
     unsigned char type:5;
 };
 
-struct packet_header_t cria_header();
+struct packet_header_t create_header();
 
-int eh_header(struct packet_header_t p);
+int is_header(struct packet_header_t p);
 
-void imprime_header(struct packet_header_t p);
+void print_header(struct packet_header_t p);
 
-unsigned int escreve_header(struct packet_header_t p, char* buffer);
+unsigned int write_header(struct packet_header_t p, char* buffer);
 
-int le_header(struct packet_header_t *p, char* buffer);
+int read_header(struct packet_header_t *p, char* buffer);
 
-unsigned int escreve_crc(char *buffer, int bytes);
+unsigned int write_crc(char *buffer, int bytes);
 
-int crc_valido(char *buffer, int bytes);
+int valid_crc(char *buffer, int bytes);
 
 #endif

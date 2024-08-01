@@ -10,25 +10,25 @@
 #define FRAME_LEN 128
 #define DATA_SIZE 63
 
-int eh_interface(char *path);
+int get_index( char *interface );
 
-int main (int argc, char **argv) {
+int main ( int argc, char **argv ) {
     if (argc != 2) {
         printf("Erro: execucao incorreta\n");
         printf("Exemplo: sudo ./client interface_de_rede\n");
         exit(1);
     }
 
-    int send_len, bytes_recebidos, bytes_lidos;
+    int send_len, received_len, read_len;
     char buffer[FRAME_LEN];
     char interface[8];
 
     strncpy(interface, argv[1], 8);
-    int ifindex = eh_interface(interface);
-    struct packet_header_t header = cria_header();
-    header.type = DADOS;
+    int ifindex = get_index(interface);
+    struct packet_header_t header = create_header();
+    header.type = DATA;
 
-    int soquete = cria_raw_socket(interface);
+    int sockfd = create_raw_socket(interface);
 
     char data[DATA_SIZE];
     printf("Insira uma mensagem para ser enviada: ");
@@ -36,49 +36,49 @@ int main (int argc, char **argv) {
     getchar();
     header.size = strlen(data);
 
-    send_len = escreve_header(header, buffer);
+    send_len = write_header(header, buffer);
     strcpy(buffer + send_len, data);
     send_len += strlen(data);
-    send_len += escreve_crc(buffer, send_len);
+    send_len += write_crc(buffer, send_len);
 
     if (send_len < 14) {
         fprintf(stderr, "Mensagem curta demais para ser enviada (tamanho minimo: %d, tamanho da mensagem: %d)\n", 14, send_len);
         exit(1);
     }
-    send_packet(soquete, buffer, send_len, ifindex);
+    send_packet(sockfd, buffer, send_len, ifindex);
     printf("Aguardando resposta...\n");
 
     while (1) {
-        bytes_recebidos = recvfrom(soquete, buffer, FRAME_LEN, 0, NULL, NULL);
-        if (bytes_recebidos < 0) {
+        received_len = recvfrom(sockfd, buffer, FRAME_LEN, 0, NULL, NULL);
+        if (received_len < 0) {
             perror("erro em recvfrom");
-            close(soquete);
+            close(sockfd);
             exit(1);
         }
 
-        if (bytes_recebidos >= SIZEOF_SMALLEST_PACKET) {
-            bytes_lidos = le_header(&header, buffer);
-            if (bytes_lidos) {
-                if (!crc_valido(buffer, bytes_lidos + header.size)) {
+        if (received_len >= SIZEOF_SMALLEST_PACKET) {
+            read_len = read_header(&header, buffer);
+            if (read_len) {
+                if (! valid_crc(buffer, read_len + header.size)) {
                     // erro no crc
                     printf("Erro detectado pelo crc");
                     exit(1);
                 } else {
                     printf("Pacote recebido com sucesso\n");
-                    imprime_header(header);
-                    memcpy(&data, buffer + bytes_lidos, header.size);
-                    data[header.size] = '\0';
+                    print_header(header);
+                    //memcpy(&data, buffer + read_len, header.size);
+                    //data[header.size] = '\0';
                     break;
                 }
             }
         }
     }
 
-    close(soquete);
+    close(sockfd);
     return 0;
 }
 
-int eh_interface(char *interface)
+int get_index( char *interface )
 {
     int index = if_nametoindex(interface);
     if (!index) {
