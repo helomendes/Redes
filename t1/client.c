@@ -46,6 +46,7 @@ int main (int argc, char **argv) {
         exit(1);
     }
     send_packet(soquete, buffer, send_len, ifindex);
+    printf("Aguardando resposta...\n");
 
     while (1) {
         bytes_recebidos = recvfrom(soquete, buffer, FRAME_LEN, 0, NULL, NULL);
