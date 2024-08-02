@@ -130,10 +130,15 @@ void send_video_list( int sockfd, char *buffer, struct packet_header_t header, c
     while ((ep = readdir(dp)) != NULL) {
         filename_size = is_video(ep->d_name);
         if ((filename_size) && (filename_size <= 63)) {
-            header.size = filename_size;
             send_len = write_header(header, buffer);
             strncpy(buffer + send_len, ep->d_name, filename_size);
-            send_len += filename_size;
+            if (filename_size < 10) {
+                send_len += 10;
+                buffer[send_len] = '\0';
+            } else {
+                header.size = filename_size;
+            }
+            send_len += header.size;
             write_crc(buffer, send_len);
             send_packet(sockfd, buffer, send_len, ifindex);
         }
