@@ -4,6 +4,7 @@
 #include <linux/if_packet.h>
 #include <net/if.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 #include "socket.h"
 #include "packet.h"
@@ -59,7 +60,7 @@ void send_command( int sockfd, char *buffer, int ifindex, unsigned char command 
         exit(1);
     }
 
-    struct packet_header_t header;
+    struct packet_header_t header = create_header();
     header.size = 10;
     header.type = command;
     header.sequence = 1;
@@ -76,4 +77,38 @@ void send_command( int sockfd, char *buffer, int ifindex, unsigned char command 
         perror("sendto");
         exit(1);
     }
+}
+
+int expect_response( int sockfd, char *buffer, int buffer_size )
+{
+    // TODO: incluir timeout depois
+    int received_len, read_len;
+    struct packet_header_t header;
+    while (1) {
+        received_len = recvfrom(sockfd, buffer, buffer_size, 0, NULL, NULL);
+        if (received_len < 0) {
+            perror("erro em recvfrom");
+            close(sockfd);
+            exit(1);
+        }
+
+        if (is_packet(buffer, received_len)) {
+            read_len = read_header(&header, buffer);
+            if (! valid_crc(buffer, read_len + header.size)) {
+                // erro no crc, quem chamou essa funcao manda um nack
+                fprintf(stderr, "Erro detectado pelo crc\n");
+                return 10;
+            } else {
+                if (header.type == ACK) return 0;
+                else if (header.type == NACK) return 1;
+                else if (header.type == ERROR) return 2;
+                else {
+                    printf("Resposta recebida: %d\n", (int) header.type);
+                    return 3;
+                }
+            }
+        }
+    }
+
+    return 0;
 }

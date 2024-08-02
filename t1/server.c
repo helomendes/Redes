@@ -14,7 +14,7 @@
 
 void is_dir( char *path );
 int get_index( char *interface );
-void send_video_list( int sockfd, char *buffer, struct packet_header_t header, char *videos_dir, int ifindex );
+void send_video_list( int sockfd, char *buffer, char *videos_dir, int ifindex );
 int expect_response( int sockfd, char *buffer, int buffer_size );
 
 int main ( int argc, char **argv ) {
@@ -58,7 +58,8 @@ int main ( int argc, char **argv ) {
                 //printf("%s\n", data);
 
                 if (header.type == LIST) {
-                    send_video_list(sockfd, buffer, header, videos_dir, ifindex);
+                    send_command(sockfd, buffer, ifindex, ACK);
+                    send_video_list(sockfd, buffer, videos_dir, ifindex);
                 }
                 // else mandar um nack?
 
@@ -114,7 +115,7 @@ int is_video(char* filename)
     return 0;
 }
 
-void send_video_list( int sockfd, char *buffer, struct packet_header_t header, char *videos_dir, int ifindex )
+void send_video_list( int sockfd, char *buffer, char *videos_dir, int ifindex )
 {
     DIR *dp = opendir(videos_dir);
     struct dirent *ep;
@@ -125,22 +126,24 @@ void send_video_list( int sockfd, char *buffer, struct packet_header_t header, c
     }
 
     int send_len;
+    struct packet_header_t header = create_header();
     header.type = SHOW;
     header.sequence = 0;
     while ((ep = readdir(dp)) != NULL) {
         filename_size = is_video(ep->d_name);
         if ((filename_size) && (filename_size <= 63)) {
             header.sequence++;
-            if (filename_size < 10) {
-                header.size = 10;
-                buffer[filename_size] = '\0';
-            } else {
-                header.size = filename_size;
-            }
+
+            if (filename_size < 10) header.size = 10;
+            else header.size = filename_size;
+
             send_len = write_header(header, buffer);
+            if (header.size != filename_size)
+                buffer[send_len + filename_size] = '\0';
+
             strncpy(buffer + send_len, ep->d_name, filename_size);
             send_len += header.size;
-            write_crc(buffer, send_len);
+            send_len += write_crc(buffer, send_len);
             send_packet(sockfd, buffer, send_len, ifindex);
             if (expect_response(sockfd, buffer, BUFFER_SIZE)) {
                 fprintf(stderr, "Nao recebeu ack, interrompendo transmissao\n");
@@ -153,35 +156,4 @@ void send_video_list( int sockfd, char *buffer, struct packet_header_t header, c
     send_command(sockfd, buffer, ifindex, END);
 
     closedir(dp);
-}
-
-int expect_response( int sockfd, char *buffer, int buffer_size )
-{
-    // TODO: incluir timeout depois
-    int received_len, read_len;
-    struct packet_header_t header;
-    while (1) {
-        received_len = recvfrom(sockfd, buffer, buffer_size, 0, NULL, NULL);
-        if (received_len < 0) {
-            perror("erro em recvfrom");
-            close(sockfd);
-            exit(1);
-        }
-
-        if (is_packet(buffer, received_len)) {
-            read_len = read_header(&header, buffer);
-            if (! valid_crc(buffer, read_len + header.size)) {
-                // erro no crc, quem chamou essa funcao manda um nack
-                fprintf(stderr, "Erro detectado pelo crc\n");
-                return 10;
-            } else {
-                if (header.type == ACK) return 0;
-                else if (header.type == NACK) return 1;
-                else if (header.type == ERROR) return 2;
-                else return 3;
-            }
-        }
-    }
-
-    return 0;
 }

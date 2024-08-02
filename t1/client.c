@@ -12,7 +12,7 @@
 #define ANSI_COLOR_BLUE    "\x1b[34m"
 #define ANSI_COLOR_RESET   "\x1b[0m"
 
-#define FRAME_LEN 128
+#define BUFFER_SIZE 128
 #define DATA_SIZE 63
 
 int get_index( char *interface );
@@ -26,7 +26,7 @@ int main ( int argc, char **argv ) {
     }
 
     int send_len, received_len, read_len;
-    char buffer[FRAME_LEN];
+    char buffer[BUFFER_SIZE];
     char interface[8];
 
     strncpy(interface, argv[1], 8);
@@ -41,11 +41,15 @@ int main ( int argc, char **argv ) {
     send_len += 10;
     send_len += write_crc(buffer, send_len);
     send_packet(sockfd, buffer, send_len, ifindex);
+    if (expect_response(sockfd, buffer, BUFFER_SIZE)) {
+        printf("Recebeu erro\n");
+        exit(1);
+    }
     // espera um ack seguido de varios show, devolve cada show com ack ou nack
 
     char data[DATA_SIZE];
     while (1) {
-        received_len = recvfrom(sockfd, buffer, FRAME_LEN, 0, NULL, NULL);
+        received_len = recvfrom(sockfd, buffer, BUFFER_SIZE, 0, NULL, NULL);
         if (received_len < 0) {
             perror("erro em recvfrom");
             close(sockfd);
@@ -59,11 +63,13 @@ int main ( int argc, char **argv ) {
                 fprintf(stderr, "Erro detectado pelo crc\n");
                 exit(1);
             } else {
-                if (header.type == END)
+                if (header.type == END) {
                     break;
+                }
 
                 if (header.type == SHOW) {
-                    memcpy(&data, buffer + read_len, header.size);
+                    strncpy(data, buffer + read_len, header.size);
+                    //memcpy(data, buffer + read_len, header.size);
                     data[header.size] = '\0';
                     printf("%s\n", data);
                     send_command(sockfd, buffer, ifindex, ACK);

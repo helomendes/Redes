@@ -7,4 +7,6 @@ void send_packet( int sockfd, char *buffer, int bytes, int ifindex );
 
 void send_command( int sockfd, char *buffer, int ifindex, unsigned char command );
 
+int expect_response( int sockfd, char *buffer, int buffer_size );
+
 #endif
