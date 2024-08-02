@@ -32,23 +32,25 @@ int main ( int argc, char **argv ) {
     strncpy(interface, argv[1], 8);
     int ifindex = get_index(interface);
     struct packet_header_t header = create_header();
-    header.type = DATA;
+    header.type = LIST;
+    header.size = 10;
 
     int sockfd = create_raw_socket(interface);
 
     char data[DATA_SIZE];
-    header.size = read_message(data);
-    header.type = LIST;
+    //header.size = read_message(data);
+    //header.type = LIST;
 
     send_len = write_header(header, buffer);
-    strcpy(buffer + send_len, data);
-    send_len += strlen(data);
+    send_len += 10;
+    //strcpy(buffer + send_len, data);
+    //send_len += strlen(data);
     send_len += write_crc(buffer, send_len);
 
-    if (send_len < 14) {
-        fprintf(stderr, "Mensagem curta demais para ser enviada (tamanho minimo: %d, tamanho da mensagem: %d)\n", 14, send_len);
-        exit(1);
-    }
+    //if (send_len < 14) {
+    //    fprintf(stderr, "Mensagem curta demais para ser enviada (tamanho minimo: %d, tamanho da mensagem: %d)\n", 14, send_len);
+    //    exit(1);
+    //}
 
     send_packet(sockfd, buffer, send_len, ifindex);
 
@@ -73,6 +75,7 @@ int main ( int argc, char **argv ) {
                 if (header.type == DATA) {
                     memcpy(&data, buffer + read_len, header.size);
                     data[header.size] = '\0';
+                    printf("%s\n", data);
                 }
                 //printf("Pacote recebido com sucesso\n");
                 //print_header(header);

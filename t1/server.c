@@ -54,8 +54,8 @@ int main (int argc, char **argv) {
             } else {
                 //printf("Pacote recebido com sucesso\n");
                 //print_header(header);
-                memcpy(&data, buffer + read_len, header.size);
-                data[header.size] = '\0';
+                //memcpy(&data, buffer + read_len, header.size);
+                //data[header.size] = '\0';
                 //printf("%s\n", data);
 
                 if (header.type == LIST) {
@@ -134,9 +134,16 @@ void send_video_list( int sockfd, char *buffer, struct packet_header_t header, c
             send_len = write_header(header, buffer);
             strncpy(buffer + send_len, ep->d_name, filename_size);
             send_len += filename_size;
+            write_crc(buffer, send_len);
             send_packet(sockfd, buffer, send_len, ifindex);
         }
     }
+    header.size = 10;
+    header.type = END;
+    send_len = write_header(header, buffer);
+    send_len += 10;
+    write_crc(buffer, send_len);
+    send_packet(sockfd, buffer, send_len, ifindex);
 
     closedir(dp);
 }
