@@ -4,7 +4,9 @@
 #include <linux/if_packet.h>
 #include <net/if.h>
 #include <stdlib.h>
+
 #include "socket.h"
+#include "packet.h"
 
 int create_raw_socket(char* interface)
 {
@@ -46,6 +48,31 @@ void send_packet(int sockfd, char* buffer, int bytes, int ifindex)
     addr.sll_ifindex = ifindex;
 
     if (sendto(sockfd, buffer, bytes, 0, (struct sockaddr *) &addr, sizeof(struct sockaddr_ll)) < 0) {
+        perror("sendto");
+        exit(1);
+    }
+}
+void send_command( int sockfd, char *buffer, int ifindex, unsigned char command )
+{
+    if ((command != ACK) && (command != NACK) && (command != LIST) && (command != END)) {
+        fprintf(stderr, "Comando desconhecido: %d\n", (int) command);
+        exit(1);
+    }
+
+    struct packet_header_t header;
+    header.size = 10;
+    header.type = command;
+    header.sequence = 1;
+    int send_len = write_header(header, buffer);
+    send_len += header.size;
+    send_len += write_crc(buffer, send_len);
+
+    struct sockaddr_ll addr = {0};
+    addr.sll_family = AF_PACKET;
+    addr.sll_protocol = htons(ETH_P_ALL);
+    addr.sll_ifindex = ifindex;
+
+    if (sendto(sockfd, buffer, send_len, 0, (struct sockaddr *) &addr, sizeof(struct sockaddr_ll)) < 0) {
         perror("sendto");
         exit(1);
     }

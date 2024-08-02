@@ -37,23 +37,13 @@ int main ( int argc, char **argv ) {
 
     int sockfd = create_raw_socket(interface);
 
-    char data[DATA_SIZE];
-    //header.size = read_message(data);
-    //header.type = LIST;
-
     send_len = write_header(header, buffer);
     send_len += 10;
-    //strcpy(buffer + send_len, data);
-    //send_len += strlen(data);
     send_len += write_crc(buffer, send_len);
-
-    //if (send_len < 14) {
-    //    fprintf(stderr, "Mensagem curta demais para ser enviada (tamanho minimo: %d, tamanho da mensagem: %d)\n", 14, send_len);
-    //    exit(1);
-    //}
-
     send_packet(sockfd, buffer, send_len, ifindex);
+    // espera um ack seguido de varios show, devolve cada show com ack ou nack
 
+    char data[DATA_SIZE];
     while (1) {
         received_len = recvfrom(sockfd, buffer, FRAME_LEN, 0, NULL, NULL);
         if (received_len < 0) {
@@ -65,17 +55,18 @@ int main ( int argc, char **argv ) {
         if (is_packet(buffer, received_len)) {
             read_len = read_header(&header, buffer);
             if (! valid_crc(buffer, read_len + header.size)) {
-                // erro no crc
-                printf("Erro detectado pelo crc");
+                // erro no crc, manda um nack
+                fprintf(stderr, "Erro detectado pelo crc\n");
                 exit(1);
             } else {
                 if (header.type == END)
                     break;
 
-                if (header.type == DATA) {
+                if (header.type == SHOW) {
                     memcpy(&data, buffer + read_len, header.size);
                     data[header.size] = '\0';
                     printf("%s\n", data);
+                    send_command(sockfd, buffer, ifindex, ACK);
                 }
                 //printf("Pacote recebido com sucesso\n");
                 //print_header(header);
