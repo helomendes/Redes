@@ -26,7 +26,7 @@ int main ( int argc, char **argv ) {
     }
 
     int send_len, received_len, read_len;
-    char buffer[BUFFER_SIZE];
+    char buffer[BUFFER_SIZE], data[DATA_SIZE];
     char interface[8];
 
     strncpy(interface, argv[1], 8);
@@ -45,9 +45,7 @@ int main ( int argc, char **argv ) {
         printf("Recebeu erro\n");
         exit(1);
     }
-    // espera um ack seguido de varios show, devolve cada show com ack ou nack
 
-    char data[DATA_SIZE];
     while (1) {
         received_len = recvfrom(sockfd, buffer, BUFFER_SIZE, 0, NULL, NULL);
         if (received_len < 0) {
@@ -63,20 +61,14 @@ int main ( int argc, char **argv ) {
                 fprintf(stderr, "Erro detectado pelo crc\n");
                 exit(1);
             } else {
-                if (header.type == END) {
-                    break;
-                }
+                if (header.type == END) break;
 
                 if (header.type == SHOW) {
                     strncpy(data, buffer + read_len, header.size);
-                    //memcpy(data, buffer + read_len, header.size);
                     data[header.size] = '\0';
                     printf("%s\n", data);
                     send_command(sockfd, buffer, ifindex, ACK);
                 }
-                //printf("Pacote recebido com sucesso\n");
-                //print_header(header);
-                //printf(ANSI_COLOR_YELLOW "server: %s" ANSI_COLOR_RESET "\n", data);
             }
         }
     }

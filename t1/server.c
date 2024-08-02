@@ -15,7 +15,6 @@
 void is_dir( char *path );
 int get_index( char *interface );
 void send_video_list( int sockfd, char *buffer, char *videos_dir, int ifindex );
-int expect_response( int sockfd, char *buffer, int buffer_size );
 
 int main ( int argc, char **argv ) {
     if (argc != 3) {
