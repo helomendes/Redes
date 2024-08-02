@@ -15,7 +15,7 @@
 
 void is_dir( char *path );
 int get_index( char *interface );
-void send_video_list( char *buffer, struct packet_header_t header, char *videos_dir );
+void send_video_list( int sockfd, char *buffer, struct packet_header_t header, char *videos_dir, int ifindex );
 
 int main (int argc, char **argv) {
     if (argc != 3) {
@@ -25,7 +25,7 @@ int main (int argc, char **argv) {
     }
 
     int received_len, read_len, send_len;
-    char interface[8], videos_dir[PATH_MAX], garbage[16];
+    char interface[8], videos_dir[PATH_MAX];
 
     strncpy(interface, argv[1], 8);
     int ifindex = get_index(interface);
@@ -45,12 +45,12 @@ int main (int argc, char **argv) {
             exit(1);
         }
 
-        if (received_len >= SIZEOF_SMALLEST_PACKET) {
+        if (is_packet(buffer, received_len)) {
             read_len = read_header(&header, buffer);
             if (! valid_crc(buffer, read_len + header.size)) {
                 // erro no crc
                 // mandar um nack
-                printf("Erro detectado pelo crc");
+                printf("Erro detectado pelo crc\n");
             } else {
                 //printf("Pacote recebido com sucesso\n");
                 //print_header(header);
@@ -59,18 +59,18 @@ int main (int argc, char **argv) {
                 //printf("%s\n", data);
 
                 if (header.type == LIST) {
-                    send_video_list(buffer, header, videos_dir);
+                    send_video_list(sockfd, buffer, header, videos_dir, ifindex);
                 }
 
-                printf("respondendo...\n");
-                header.size = sizeof(garbage);
-                header.type = ACK;
-                header.sequence = 2;
-                send_len = write_header(header, buffer);
-                memcpy(buffer + send_len, garbage, header.size);
-                send_len += header.size;
-                send_len += write_crc(buffer, send_len);
-                send_packet(sockfd, buffer, send_len, ifindex);
+                //printf("respondendo...\n");
+                //header.size = sizeof(garbage);
+                //header.type = ACK;
+                //header.sequence = 2;
+                //send_len = write_header(header, buffer);
+                //memcpy(buffer + send_len, garbage, header.size);
+                //send_len += header.size;
+                //send_len += write_crc(buffer, send_len);
+                //send_packet(sockfd, buffer, send_len, ifindex);
             }
         }
     }
@@ -90,7 +90,8 @@ int get_index( char *interface )
     return index;
 }
 
-void is_dir( char *interface ) {
+void is_dir( char *interface )
+{
     struct stat dir_stats;
     stat(interface, &dir_stats);
     if (!S_ISDIR(dir_stats.st_mode)) {
@@ -99,16 +100,43 @@ void is_dir( char *interface ) {
     }
 }
 
-void send_video_list( char *buffer, struct packet_header_t header, char *videos_dir )
+int is_video(char* filename)
+{
+    int size = 0;
+
+    while(filename[size] != '\0') size++;
+
+    if (size < 5) return 0;
+
+    if ((! strncmp(filename + size - 4, ".avi", 4)) || (! strncmp(filename + size - 4, ".mp4", 4))) {
+        return size;
+    }
+    return 0;
+}
+
+void send_video_list( int sockfd, char *buffer, struct packet_header_t header, char *videos_dir, int ifindex )
 {
     DIR *dp = opendir(videos_dir);
     struct dirent *ep;
+    int filename_size;
     if (! dp) {
         fprintf(stderr, "Falha ao abrir o diretorio %s\n", videos_dir);
         exit(1);
     }
-    while ((ep = readdir(dp)) != NULL)
-        printf("%s\n", ep->d_name);
+
+    int send_len;
+    header.type = DATA;
+    header.sequence = 1;
+    while ((ep = readdir(dp)) != NULL) {
+        filename_size = is_video(ep->d_name);
+        if ((filename_size) && (filename_size <= 63)) {
+            header.size = filename_size;
+            send_len = write_header(header, buffer);
+            strncpy(buffer + send_len, ep->d_name, filename_size);
+            send_len += filename_size;
+            send_packet(sockfd, buffer, send_len, ifindex);
+        }
+    }
 
     closedir(dp);
 }

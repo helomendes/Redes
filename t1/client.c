@@ -52,30 +52,34 @@ int main ( int argc, char **argv ) {
 
     send_packet(sockfd, buffer, send_len, ifindex);
 
-    //while (1) {
-    //    received_len = recvfrom(sockfd, buffer, FRAME_LEN, 0, NULL, NULL);
-    //    if (received_len < 0) {
-    //        perror("erro em recvfrom");
-    //        close(sockfd);
-    //        exit(1);
-    //    }
+    while (1) {
+        received_len = recvfrom(sockfd, buffer, FRAME_LEN, 0, NULL, NULL);
+        if (received_len < 0) {
+            perror("erro em recvfrom");
+            close(sockfd);
+            exit(1);
+        }
 
-    //    if (is_packet(buffer, received_len)) {
-    //        read_len = read_header(&header, buffer);
-    //        if (! valid_crc(buffer, read_len + header.size)) {
-    //            // erro no crc
-    //            printf("Erro detectado pelo crc");
-    //            exit(1);
-    //        } else {
-    //            //printf("Pacote recebido com sucesso\n");
-    //            //print_header(header);
-    //            memcpy(&data, buffer + read_len, header.size);
-    //            data[header.size] = '\0';
-    //            //printf(ANSI_COLOR_YELLOW "server: %s" ANSI_COLOR_RESET "\n", data);
-    //            break;
-    //        }
-    //    }
-    //}
+        if (is_packet(buffer, received_len)) {
+            read_len = read_header(&header, buffer);
+            if (! valid_crc(buffer, read_len + header.size)) {
+                // erro no crc
+                printf("Erro detectado pelo crc");
+                exit(1);
+            } else {
+                if (header.type == END)
+                    break;
+
+                if (header.type == DATA) {
+                    memcpy(&data, buffer + read_len, header.size);
+                    data[header.size] = '\0';
+                }
+                //printf("Pacote recebido com sucesso\n");
+                //print_header(header);
+                //printf(ANSI_COLOR_YELLOW "server: %s" ANSI_COLOR_RESET "\n", data);
+            }
+        }
+    }
 
     close(sockfd);
     return 0;
