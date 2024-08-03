@@ -11,6 +11,7 @@ CC		= gcc
 CFLAGS 	= -Wall
 LFLAGS = 
 DEBUGFLAGS = -g -DDEBUG
+LOOPBACK = -DLOOPBACK
 
 # Lista de arquivos para distribuição
 DISTFILES = *.c *.h LEIAME* Makefile
@@ -21,7 +22,10 @@ DISTDIR = `basename ${PWD}`
 all: server client
 
 debug: CFLAGS += $(DEBUGFLAGS)
-debug: $(PROG)
+debug: server client
+
+loopback: CFLAGS += $(LOOPBACK)
+loopback: server client
 
 server: $(SERVER_OBJS)
 	$(CC) $(CFLAGS) -o $@ $^ $(LFLAGS)

@@ -48,36 +48,24 @@ int main ( int argc, char **argv ) {
         if (is_packet(buffer, received_len)) {
             read_len = read_header(&header, buffer);
             if (! valid_crc(buffer, read_len + header.size)) {
-                // erro no crc
-                // mandar um nack
+                // erro no crc, mandar um nack
                 printf("Erro detectado pelo crc\n");
             } else {
-                //printf("Pacote recebido com sucesso\n");
-                //print_header(header);
-                //memcpy(&data, buffer + read_len, header.size);
-                //data[header.size] = '\0';
-                //printf("%s\n", data);
 
                 if (header.type == LIST) {
                     send_command(sockfd, buffer, ifindex, ACK);
+#ifdef LOOPBACK
+                    printf("Enviando lista de videos\n");
+#endif
                     send_video_list(sockfd, buffer, videos_dir, ifindex);
                     if (expect_filename(sockfd, buffer, data, BUFFER_SIZE, ifindex)) {
                         fprintf(stderr, "Erro ao receber nome de arquivo\n");
                         continue;
                     }
                     printf("nome de arquivo recebido: %s\n", data);
+                    send_command(sockfd, buffer, ifindex, ACK);
                 }
                 // else mandar um nack?
-
-                //printf("respondendo...\n");
-                //header.size = sizeof(garbage);
-                //header.type = ACK;
-                //header.sequence = 2;
-                //send_len = write_header(header, buffer);
-                //memcpy(buffer + send_len, garbage, header.size);
-                //send_len += header.size;
-                //send_len += write_crc(buffer, send_len);
-                //send_packet(sockfd, buffer, send_len, ifindex);
             }
         }
     }

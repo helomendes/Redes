@@ -9,7 +9,9 @@
 #include "socket.h"
 #include "packet.h"
 
-int create_raw_socket(char* interface)
+void catch_loopback( int sockfd, char *buffer, int buffer_size );
+
+int create_raw_socket( char* interface )
 {
     int sockfd = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
     if (sockfd == -1) {
@@ -48,10 +50,19 @@ void send_packet(int sockfd, char* buffer, int bytes, int ifindex)
     addr.sll_protocol = htons(ETH_P_ALL);
     addr.sll_ifindex = ifindex;
 
+#ifdef LOOPBACK
+    printf("Enviando pacote\n");
+#endif
+
     if (sendto(sockfd, buffer, bytes, 0, (struct sockaddr *) &addr, sizeof(struct sockaddr_ll)) < 0) {
         perror("sendto");
         exit(1);
     }
+
+#ifdef LOOPBACK
+    catch_loopback(sockfd, buffer, bytes);
+#endif
+
 }
 void send_command( int sockfd, char *buffer, int ifindex, unsigned char command )
 {
@@ -73,10 +84,18 @@ void send_command( int sockfd, char *buffer, int ifindex, unsigned char command 
     addr.sll_protocol = htons(ETH_P_ALL);
     addr.sll_ifindex = ifindex;
 
+#ifdef LOOPBACK
+    printf("Enviando comando do tipo %d\n", command);
+#endif
+
     if (sendto(sockfd, buffer, send_len, 0, (struct sockaddr *) &addr, sizeof(struct sockaddr_ll)) < 0) {
         perror("sendto");
         exit(1);
     }
+
+#ifdef LOOPBACK
+    catch_loopback(sockfd, buffer, send_len);
+#endif
 }
 
 int expect_response( int sockfd, char *buffer, int buffer_size )
@@ -99,6 +118,9 @@ int expect_response( int sockfd, char *buffer, int buffer_size )
                 fprintf(stderr, "Erro detectado pelo crc\n");
                 return 10;
             } else {
+#ifdef LOOPBACK
+                printf("Resposta recebida do tipo %d\n", header.type);
+#endif
                 if (header.type == ACK) return 0;
                 else if (header.type == NACK) return 1;
                 else if (header.type == ERROR) return 2;
@@ -111,4 +133,29 @@ int expect_response( int sockfd, char *buffer, int buffer_size )
     }
 
     return 0;
+}
+
+void catch_loopback( int sockfd, char *buffer, int buffer_size )
+{
+    int received_len, read_len;
+    struct packet_header_t header;
+    while (1) {
+        received_len = recvfrom(sockfd, buffer, buffer_size, 0, NULL, NULL);
+        if (received_len < 0) {
+            perror("erro em recvfrom");
+            close(sockfd);
+            exit(1);
+        }
+
+        if (is_packet(buffer, received_len)) {
+            read_len = read_header(&header, buffer);
+            if (! valid_crc(buffer, read_len + header.size)) {
+                // erro no crc, quem chamou essa funcao manda um nack
+                fprintf(stderr, "Erro detectado pelo crc\n");
+                exit(1);
+            } else {
+                printf("Loopback capturado, tipo %d\n", header.type);
+            }
+        }
+    }
 }
