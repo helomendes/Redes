@@ -6,6 +6,7 @@ class Player:
         self.set_dealer()
         self.token = False
         self.msg_queue = []
+        self.life = 12
 
     def set_dealer(self):
         if self.id == 1:

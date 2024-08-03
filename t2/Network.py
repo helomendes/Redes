@@ -6,6 +6,7 @@ class Network:
     def __init__(self):
         self.create_socket()
         self.ports = [[2000, 2001], [2001, 2002], [2002, 2003], [2003, 2000]]
+        self.token = None
 
     def create_socket(self):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -18,55 +19,51 @@ class Network:
             print(e)
             exit()
 
-    def create_token(self, player, msg):
-        if player.dealer:
+    def create_token(self, msg, player):
+        if player.dealer and not self.token:
+            self.token = msg.create_message(msg.token_type, False, player.org_addr, player.dest_addr, 'token')
             player.token = True
-        self.token = msg.create_message(msg.token_type, False, player.org_addr, player.dest_addr, 'token')
 
-    def pass_token(self, player):
-        self.speak(self.token)
+    def pass_token(self, msg, player):
+        self.token['origin'] = player.org_addr
+        self.token['destination'] = player.dest_addr
+        msg.send_message(self, player, self.token)
         player.token = False
 
-    def hear(self):
-        try:
-            data, _ = self.sock.recvfrom(1024)
-            return json.loads(data.decode())
-        except Exception as e:
-            pass
-
-    def speak(self, msg):
-        msg_str = json.dumps(msg)
-        self.sock.sendto(msg_str.encode(), msg['destination'])
+    def receive_token(self, player, data):
+        self.token = data
+        player.token = True
 
     def establish_network(self, player, msg):
-        packet_1 = msg.create_message(msg.test_type, True, player.org_addr, player.dest_addr, 'establishing network')
-        packet_2 = msg.create_message(msg.test_type, True, player.org_addr, player.dest_addr, 'network established')
-        print(type(player.dest_addr))
+        packet_1 = msg.create_message(msg.test_type, True, player.org_addr, player.org_addr, 'establishing network')
+        packet_2 = msg.create_message(msg.test_type, True, player.org_addr, player.org_addr, 'network established')
 
         if player.id == 1:
             received = False
             while not received:
-                self.speak(packet_1)
-                data = self.hear()
-                if data == packet_1:
-                    print('network established')
-                    received = True
-            self.speak(packet_2)
+                msg.send_message(self, player, packet_1)
+                data = msg.receive_message(self)
+                if msg.permission(player, data):
+                    if data['data'] == packet_1['data']:
+                        print('NETWORK ESTABLISHED')
+                        print()
+                        received = True
+            msg.send_message(self, player, packet_2)
             while True:
-                data = self.hear()
-                if data == packet_2:
-                    break   
+                data = msg.receive_message(self)
+                if msg.permission(player, data):
+                    if data['data'] == packet_2['data']:
+                        break   
         else:
             while True:
-                data = self.hear()
-                print('message received:', data)
-                print(type(data['destination']), data['destination'])
-                if data == packet_1:
-                    break
+                data = msg.receive_message(self)
+                if msg.permission(player, data):
+                    if data['data'] == packet_1['data']:
+                        break
             while True:
-                self.speak(data)
-                data_2 = self.hear()
-                print('message received:', data_2)
-                if data_2 == packet_2:
-                    self.speak(data_2)
-                    break
+                msg.send_message(self, player, data)
+                data_2 = msg.receive_message(self)
+                if msg.permission(player, data_2):
+                    if data_2 and data_2['data'] == packet_2['data']:
+                        msg.send_message(self, player, data_2)
+                        break

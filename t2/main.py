@@ -11,7 +11,7 @@ def main():
 
     ntw.bind(player)
     ntw.establish_network(player, msg)
-    #game.start(ntw, player, msg)
+    game.start(ntw, player, msg)
 
 
 #   definir o carteador (começa sendo o player 1)
