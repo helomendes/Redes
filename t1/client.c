@@ -75,6 +75,7 @@ int main ( int argc, char **argv ) {
 
     printf("Insira o nome do video que deseja transmitir: ");
     scanf("%62[^\n]", data);
+    getchar();
 
     header.size = strlen(data);
     header.sequence = 1;

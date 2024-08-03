@@ -173,6 +173,7 @@ int expect_filename( int sockfd, char *buffer, char *data, int buffer_size, int 
             } else {
                 if (header.type == DOWNLOAD) {
                     strncpy(data, buffer + read_len, header.size);
+                    data[header.size] = '\0';
                     return 0;
                 } else {
                     return 1;
