@@ -73,6 +73,24 @@ int main ( int argc, char **argv ) {
         }
     }
 
+    printf("Insira o nome do video que deseja transmitir: ");
+    scanf("%62[^\n]", data);
+
+    header.size = strlen(data);
+    header.sequence = 1;
+    header.type = DOWNLOAD;
+
+    send_len = write_header(header, buffer);
+    strncpy(buffer + send_len, data, header.size);
+    send_len += header.size;
+    send_len += write_crc(buffer, send_len);
+    send_packet(sockfd, buffer, send_len, ifindex);
+    if (expect_response(sockfd, buffer, BUFFER_SIZE)) {
+        printf("Recebeu erro\n");
+        exit(1);
+    }
+    printf("Recebeu ack do download\n");
+
     close(sockfd);
     return 0;
 }

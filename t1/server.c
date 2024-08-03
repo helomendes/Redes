@@ -11,10 +11,12 @@
 #include "socket.h"
 
 #define BUFFER_SIZE     128
+#define DATA_SIZE       63
 
 void is_dir( char *path );
 int get_index( char *interface );
 void send_video_list( int sockfd, char *buffer, char *videos_dir, int ifindex );
+int expect_filename( int sockfd, char *buffer, char *data, int buffer_size, int ifindex );
 
 int main ( int argc, char **argv ) {
     if (argc != 3) {
@@ -34,7 +36,7 @@ int main ( int argc, char **argv ) {
     int sockfd = create_raw_socket(interface);
     struct packet_header_t header;
 
-    char buffer[BUFFER_SIZE];
+    char buffer[BUFFER_SIZE], data[DATA_SIZE];
     while (1) {
         received_len = recvfrom(sockfd, buffer, BUFFER_SIZE, 0, NULL, NULL);
         if (received_len < 0) {
@@ -59,6 +61,11 @@ int main ( int argc, char **argv ) {
                 if (header.type == LIST) {
                     send_command(sockfd, buffer, ifindex, ACK);
                     send_video_list(sockfd, buffer, videos_dir, ifindex);
+                    if (expect_filename(sockfd, buffer, data, BUFFER_SIZE, ifindex)) {
+                        fprintf(stderr, "Erro ao receber nome de arquivo\n");
+                        continue;
+                    }
+                    printf("nome de arquivo recebido: %s\n", data);
                 }
                 // else mandar um nack?
 
@@ -155,4 +162,36 @@ void send_video_list( int sockfd, char *buffer, char *videos_dir, int ifindex )
     send_command(sockfd, buffer, ifindex, END);
 
     closedir(dp);
+}
+
+int expect_filename( int sockfd, char *buffer, char *data, int buffer_size, int ifindex )
+{
+    int received_len, read_len;
+    struct packet_header_t header;
+    while (1) {
+        received_len = recvfrom(sockfd, buffer, buffer_size, 0, NULL, NULL);
+        if (received_len < 0) {
+            perror("erro em recvfrom");
+            close(sockfd);
+            exit(1);
+        }
+
+        if (is_packet(buffer, received_len)) {
+            read_len = read_header(&header, buffer);
+            if (! valid_crc(buffer, read_len + header.size)) {
+                // erro no crc, quem chamou essa funcao manda um nack
+                fprintf(stderr, "Erro detectado pelo crc\n");
+                return 10;
+            } else {
+                if (header.type == DOWNLOAD) {
+                    strncpy(data, buffer + read_len, header.size);
+                    return 0;
+                } else {
+                    return 1;
+                }
+            }
+        }
+    }
+
+    return 0;
 }
