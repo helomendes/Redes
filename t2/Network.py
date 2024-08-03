@@ -1,19 +1,6 @@
 import socket
 import json
-
-class Message:
-    def __init__(self):
-        self.token_type = 'token_type'
-
-    def create_message(self, typ, broadcast, org, dest, data):
-        msg = {
-                "type": {typ},
-                "broadcast": {broadcast},
-                "origem": {org},
-                "destination": {dest},
-                "data": {data}
-        }
-        return msg
+from Message import Message
 
 class Network:
     def __init__(self):
@@ -31,40 +18,40 @@ class Network:
             print(e)
             exit()
 
-    def create_token(self, player):
+    def create_token(self, player, msg):
         if player.dealer:
             player.token = True
-
+        self.token = msg.create_message(msg.token_type, False, player.org_addr, player.dest_addr, 'token')
 
     def pass_token(self, player):
-        self.speak(self.token, player.dest_addr)
+        self.speak(self.token)
         player.token = False
 
     def hear(self):
         try:
             data, _ = self.sock.recvfrom(1024)
-            return data.decode()
+            return json.loads(data.decode())
         except Exception as e:
             pass
 
-    def speak(self, msg, addr):
-        if type(msg) == str:
-            msg = msg.encode()
-        self.sock.sendto(msg, addr)
+    def speak(self, msg):
+        msg_str = json.dumps(msg)
+        self.sock.sendto(msg_str.encode(), msg['destination'])
 
-    def establish_network(self, player):
-        packet_1 = 'establishing network'
-        packet_2 = 'network established'
+    def establish_network(self, player, msg):
+        packet_1 = msg.create_message(msg.test_type, True, player.org_addr, player.dest_addr, 'establishing network')
+        packet_2 = msg.create_message(msg.test_type, True, player.org_addr, player.dest_addr, 'network established')
+        print(type(player.dest_addr))
 
         if player.id == 1:
             received = False
             while not received:
-                self.speak(packet_1, player.dest_addr)
+                self.speak(packet_1)
                 data = self.hear()
                 if data == packet_1:
                     print('network established')
                     received = True
-            self.speak(packet_2, player.dest_addr)
+            self.speak(packet_2)
             while True:
                 data = self.hear()
                 if data == packet_2:
@@ -73,12 +60,13 @@ class Network:
             while True:
                 data = self.hear()
                 print('message received:', data)
+                print(type(data['destination']), data['destination'])
                 if data == packet_1:
                     break
             while True:
-                self.speak(data, player.dest_addr)
+                self.speak(data)
                 data_2 = self.hear()
                 print('message received:', data_2)
                 if data_2 == packet_2:
-                    self.speak(data_2, player.dest_addr)
+                    self.speak(data_2)
                     break
