@@ -13,10 +13,13 @@
 #define BUFFER_SIZE     128
 #define DATA_SIZE       63
 
-void is_dir( char *path );
-int get_index( char *interface );
+void is_dir( char *dir );
+void preprocess_video_path( char *videos_dir );
 void send_video_list( int sockfd, char *buffer, char *videos_dir, int ifindex );
+void create_video_path( char *videos_dir, char *video_basename, char *video_path );
+int get_index( char *interface );
 int expect_filename( int sockfd, char *buffer, char *data, int buffer_size, int ifindex );
+int send_descriptor( int sockfd, char *video_path, char *data, char *buffer, int data_size, int buffer_size, int ifindex );
 
 int main ( int argc, char **argv ) {
     if (argc != 3) {
@@ -26,12 +29,13 @@ int main ( int argc, char **argv ) {
     }
 
     int received_len, read_len;//, send_len;
-    char interface[8], videos_dir[PATH_MAX];
+    char interface[8], videos_dir[PATH_MAX], video_path[PATH_MAX];
 
     strncpy(interface, argv[1], 8);
     int ifindex = get_index(interface);
     strncpy(videos_dir, argv[2], PATH_MAX);
     is_dir(videos_dir);
+    preprocess_video_path(videos_dir);
 
     int sockfd = create_raw_socket(interface);
     struct packet_header_t header;
@@ -64,6 +68,11 @@ int main ( int argc, char **argv ) {
                     }
                     printf("nome de arquivo recebido: %s\n", data);
                     send_command(sockfd, buffer, ifindex, ACK);
+                    create_video_path(videos_dir, data, video_path);
+                    //if (send_descriptor(sockfd, video_path, data, buffer, DATA_SIZE, BUFFER_SIZE, ifindex)) {
+                    //    fprintf(stderr, "Erro ao enviar descritor de arquivo\n");
+                    //    continue;
+                    //}
                 }
                 // else mandar um nack?
             }
@@ -85,14 +94,15 @@ int get_index( char *interface )
     return index;
 }
 
-void is_dir( char *interface )
+void is_dir( char *dir )
 {
     struct stat dir_stats;
-    stat(interface, &dir_stats);
+    stat(dir, &dir_stats);
     if (!S_ISDIR(dir_stats.st_mode)) {
         fprintf(stderr, "Erro, caminho fornecido nao eh um diretorio\n");
         exit(1);
     }
+
 }
 
 int is_video(char* filename)
@@ -182,5 +192,53 @@ int expect_filename( int sockfd, char *buffer, char *data, int buffer_size, int 
         }
     }
 
+    return 0;
+}
+
+void preprocess_video_path( char *videos_dir )
+{
+    int null_char = 0;
+    while (videos_dir[null_char] != '\0') null_char++;
+    if (null_char == 0) {
+        fprintf(stderr, "Erro ao processar caminho para os videos\n");
+        exit(1);
+    }
+    if (videos_dir[null_char-1] != '/') {
+        videos_dir[null_char] = '/';
+        videos_dir[null_char+1] = '\0';
+    }
+}
+
+void create_video_path( char *videos_dir, char *video_basename, char *video_path )
+{
+    int null_char = 0;
+    while (videos_dir[null_char] != '\0') null_char++;
+    if (null_char == 0) {
+        fprintf(stderr, "Erro ao processar caminho para os videos\n");
+        exit(1);
+    }
+    strncpy(video_path, videos_dir, null_char);
+    strcpy(video_path + null_char, video_basename);
+}
+
+int send_descriptor( int sockfd, char *video_path, char *data, char *buffer, int data_size, int buffer_size, int ifindex )
+{
+    struct packet_header_t header = create_header();
+    header.type = DESCRIPTOR;
+
+    // abrir o arquivo, coletar tamanho e data, escrever no buffer, enviar e coletar resposta
+
+    uint16_t file_size, year;
+    uint8_t day, month;
+
+    int send_len = write_header(header, buffer);
+    memcpy(buffer + send_len, data, header.size);
+    send_len += header.size;
+    send_len += write_crc(buffer, send_len);
+    send_packet(sockfd, buffer, send_len, ifindex);
+    if (expect_response(sockfd, buffer, buffer_size)) {
+        fprintf(stderr, "Recebeu erro\n");
+        exit(1);
+    }
     return 0;
 }
