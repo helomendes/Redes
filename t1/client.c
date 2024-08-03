@@ -77,11 +77,17 @@ int main ( int argc, char **argv ) {
     scanf("%62[^\n]", data);
     getchar();
 
-    header.size = strlen(data);
+    int filename_size = strlen(data);
     header.sequence = 1;
     header.type = DOWNLOAD;
 
     send_len = write_header(header, buffer);
+    if (filename_size < 10) header.size = 10;
+    else header.size = filename_size;
+
+    send_len = write_header(header, buffer);
+    if (header.size != filename_size)
+        buffer[send_len + filename_size] = '\0';
     strncpy(buffer + send_len, data, header.size);
     send_len += header.size;
     send_len += write_crc(buffer, send_len);
