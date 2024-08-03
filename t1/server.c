@@ -17,9 +17,11 @@ void is_dir( char *dir );
 void preprocess_video_path( char *videos_dir );
 void send_video_list( int sockfd, char *buffer, char *videos_dir, int ifindex );
 void create_video_path( char *videos_dir, char *video_basename, char *video_path );
+
 int get_index( char *interface );
 int expect_filename( int sockfd, char *buffer, char *data, int buffer_size, int ifindex );
-int send_descriptor( int sockfd, char *video_path, char *data, char *buffer, int data_size, int buffer_size, int ifindex );
+int send_descriptor( int sockfd, char *video_path, char *buffer, int buffer_size, int ifindex );
+int send_video( int sockfd, char *video_path, char *data, char *buffer, int data_size, int buffer_size, int ifindex );
 
 int main ( int argc, char **argv ) {
     if (argc != 3) {
@@ -58,21 +60,26 @@ int main ( int argc, char **argv ) {
 
                 if (header.type == LIST) {
                     send_command(sockfd, buffer, ifindex, ACK);
-#ifdef LOOPBACK
-                    printf("Enviando lista de videos\n");
-#endif
                     send_video_list(sockfd, buffer, videos_dir, ifindex);
+
                     if (expect_filename(sockfd, buffer, data, BUFFER_SIZE, ifindex)) {
                         fprintf(stderr, "Erro ao receber nome de arquivo\n");
                         continue;
                     }
-                    printf("nome de arquivo recebido: %s\n", data);
+                    printf("Nome de arquivo recebido: %s\n", data);
                     send_command(sockfd, buffer, ifindex, ACK);
+
                     create_video_path(videos_dir, data, video_path);
-                    //if (send_descriptor(sockfd, video_path, data, buffer, DATA_SIZE, BUFFER_SIZE, ifindex)) {
-                    //    fprintf(stderr, "Erro ao enviar descritor de arquivo\n");
-                    //    continue;
-                    //}
+                    if (send_descriptor(sockfd, video_path, buffer, BUFFER_SIZE, ifindex)) {
+                        fprintf(stderr, "Erro ao enviar descritor de arquivo\n");
+                        continue;
+                    }
+                    printf("Enviando video...\n");
+                    if (send_video(sockfd, video_path, data, buffer, DATA_SIZE, BUFFER_SIZE, ifindex)) {
+                        fprintf(stderr, "Erro ao enviar video\n");
+                        continue;
+                    }
+                    printf("Video enviado com sucesso\n");
                 }
                 // else mandar um nack?
             }
@@ -221,18 +228,28 @@ void create_video_path( char *videos_dir, char *video_basename, char *video_path
     strcpy(video_path + null_char, video_basename);
 }
 
-int send_descriptor( int sockfd, char *video_path, char *data, char *buffer, int data_size, int buffer_size, int ifindex )
+int send_descriptor( int sockfd, char *video_path, char *buffer, int buffer_size, int ifindex )
 {
     struct packet_header_t header = create_header();
     header.type = DESCRIPTOR;
 
     // abrir o arquivo, coletar tamanho e data, escrever no buffer, enviar e coletar resposta
 
-    uint16_t file_size, year;
-    uint8_t day, month;
+    //uint8_t day, month;
+    //uint16_t year;
+    uint32_t file_size;
+    struct stat s;
+    if (stat(video_path, &s)) {
+        fprintf(stderr, "Erro ao acessar arquivo de video\n");
+        // joga erro para o client
+        return 1;
+    }
+
+    file_size = s.st_size;
+    header.size = 10;
 
     int send_len = write_header(header, buffer);
-    memcpy(buffer + send_len, data, header.size);
+    memcpy(buffer + send_len, &file_size, sizeof(uint32_t));
     send_len += header.size;
     send_len += write_crc(buffer, send_len);
     send_packet(sockfd, buffer, send_len, ifindex);
@@ -240,5 +257,40 @@ int send_descriptor( int sockfd, char *video_path, char *data, char *buffer, int
         fprintf(stderr, "Recebeu erro\n");
         exit(1);
     }
+    return 0;
+}
+
+int send_video( int sockfd, char *video_path, char *data, char *buffer, int data_size, int buffer_size, int ifindex )
+{
+    struct packet_header_t header = create_header();
+    header.type = DATA;
+    header.sequence = 0;
+
+    FILE *video = fopen(video_path, "r");
+    if (! video) {
+        fprintf(stderr, "Falha ao abrir video '%s'\n", video_path);
+        return 1;
+    }
+
+    int send_len;
+    int read_bytes = fread(data, 1, data_size, video);
+    while (! feof(video)) {
+        header.sequence++;
+        header.size = read_bytes;
+        send_len = write_header(header, buffer);
+        memcpy(buffer + send_len, data, header.size);
+        send_len += header.size;
+        send_len += write_crc(buffer, send_len);
+        send_packet(sockfd, buffer, send_len, ifindex);
+        if (expect_response(sockfd, buffer, buffer_size)) {
+            fprintf(stderr, "Recebeu erro\n");
+            fclose(video);
+            exit(1);
+        }
+        read_bytes = fread(data, 1, data_size, video);
+    }
+
+    send_command(sockfd, buffer, ifindex, END);
+    fclose(video);
     return 0;
 }

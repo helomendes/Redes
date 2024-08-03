@@ -7,20 +7,22 @@
 #include "packet.h"
 #include "socket.h"
 
-#define ANSI_COLOR_YELLOW  "\x1b[33m"
-#define ANSI_COLOR_GREEN   "\x1b[32m"
-#define ANSI_COLOR_BLUE    "\x1b[34m"
-#define ANSI_COLOR_RESET   "\x1b[0m"
+#define ANSI_COLOR_YELLOW   "\x1b[33m"
+#define ANSI_COLOR_GREEN    "\x1b[32m"
+#define ANSI_COLOR_BLUE     "\x1b[34m"
+#define ANSI_COLOR_RESET    "\x1b[0m"
 
 #define BUFFER_SIZE 128
-#define DATA_SIZE 63
+#define DATA_SIZE   63
+
+#define TEMP_VIDEO_PATH     "/home/memr22/Videos/Client/video_saida.mp4"
 
 int get_index( char *interface );
 int read_message( char *message );
 void expect_show( int sockfd, char *data, char *buffer, int data_size, int buffer_size, int ifindex );
 void send_filename( int sockfd, char *data, char *buffer, int buffer_size, int ifindex );
-void expect_descriptor( int sockfd, char *data, char *buffer, int buffer_size, int ifindex );
-void expect_download( int sockfd, char *data, char *buffer, int data_size, int buffer_size, int ifindex );
+void expect_descriptor( int sockfd, char *buffer, int buffer_size, int ifindex );
+void expect_download( int sockfd, char *video_path, char *data, char *buffer, int data_size, int buffer_size, int ifindex );
 
 int main ( int argc, char **argv ) {
     if (argc != 2) {
@@ -45,8 +47,9 @@ int main ( int argc, char **argv ) {
 
     expect_show(sockfd, data, buffer, DATA_SIZE, BUFFER_SIZE, ifindex);
     send_filename(sockfd, data, buffer, BUFFER_SIZE, ifindex);
-    //expect_descriptor(sockfd, data, buffer, BUFFER_SIZE, ifindex);
-    //expect_download(sockfd, data, buffer, DATA_SIZE, BUFFER_SIZE, ifindex);
+    expect_descriptor(sockfd, buffer, BUFFER_SIZE, ifindex);
+    expect_download(sockfd, TEMP_VIDEO_PATH, data, buffer, DATA_SIZE, BUFFER_SIZE, ifindex);
+    printf("Video recebido com sucesso, %s\n", TEMP_VIDEO_PATH);
 
     // receber descritor de arquivo
     // responder
@@ -135,7 +138,7 @@ void send_filename( int sockfd, char *data, char *buffer, int buffer_size, int i
     }
 }
 
-void expect_descriptor( int sockfd, char *data, char *buffer, int buffer_size, int ifindex )
+void expect_descriptor( int sockfd, char *buffer, int buffer_size, int ifindex )
 {
     struct packet_header_t header;
     int received_len, read_len;
@@ -155,11 +158,12 @@ void expect_descriptor( int sockfd, char *data, char *buffer, int buffer_size, i
                 exit(1);
             } else {
                 if (header.type == DESCRIPTOR) {
-
+                    send_command(sockfd, buffer, ifindex, ACK);
+                    return;
                 } else {
                     // nack, erro ou outra coisa (que vai ser um erro)
                     // pode ser erro de file not found, encerrar o programa ou pedir o nome do arquivo de novo?
-                    fprintf(stderr, "Erro ao receber descritor de arquivo\n");
+                    fprintf(stderr, "Erro ao receber descritor de arquivo. Tipo recebido: %d\n", header.type);
                     exit(1);
                 }
             }
@@ -167,8 +171,14 @@ void expect_descriptor( int sockfd, char *data, char *buffer, int buffer_size, i
     }
 }
 
-void expect_download( int sockfd, char *data, char *buffer, int data_size, int buffer_size, int ifindex )
+void expect_download( int sockfd, char *video_path, char *data, char *buffer, int data_size, int buffer_size, int ifindex )
 {
+    FILE *video = fopen(video_path, "w");
+    if (! video) {
+        fprintf(stderr, "Erro ao abrir arquivo '%s'\n", video_path);
+        return;
+    }
+
     struct packet_header_t header;
     int received_len, read_len;
     while (1) {
@@ -186,15 +196,15 @@ void expect_download( int sockfd, char *data, char *buffer, int data_size, int b
                 fprintf(stderr, "Erro detectado pelo crc\n");
                 exit(1);
             } else {
-                if (header.type == END) break; // fechar o arquivo aberto
+                if (header.type == END) {
+                    fclose(video);
+                    break; // fechar o arquivo aberto
+                }
 
                 if (header.type == DATA) {
-                    // escrever bytes no arquivo
-                    //strncpy(data, buffer + read_len, header.size);
-                    //data[header.size] = '\0';
-                    //printf("%s\n", data);
-                    //send_command(sockfd, buffer, ifindex, ACK);
-                    break;
+                    fwrite(buffer + read_len, header.size, 1, video);
+                    //printf("Escreveu %d bytes\n", header.size);
+                    send_command(sockfd, buffer, ifindex, ACK);
                 }
             }
         }
