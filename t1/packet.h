@@ -23,10 +23,13 @@ typedef enum {
 #define SIZEOF_INITMARKER 1
 #define SIZEOF_SMALLEST_PACKET 14
 
+#define COMMAND_SEQUENCE 1
+
 #define MAX_SIZE_VALUE (unsigned char) 63
 #define MAX_SEQUENCE_VALUE (unsigned char) 31
 #define MAX_TYPE_VALUE (unsigned char) 31
 
+#define CRC_POLY 0b111010101
 
 struct packet_header_t {
     unsigned char init_marker;

@@ -67,7 +67,6 @@ void send_command( int sockfd, char *buffer, int ifindex, unsigned char command 
     struct packet_header_t header = create_header();
     header.size = 10;
     header.type = command;
-    header.sequence = 1;
     int send_len = write_header(header, buffer);
     send_len += header.size;
     send_len += write_crc(buffer, send_len);
@@ -91,7 +90,6 @@ long long timestamp() {
 
 int expect_response( int sockfd, char *buffer, int buffer_size, int timeout_ms )
 {
-    // TODO: incluir timeout depois
     int received_len, read_len;
     struct packet_header_t header;
     long long start = timestamp();
@@ -106,8 +104,6 @@ int expect_response( int sockfd, char *buffer, int buffer_size, int timeout_ms )
         if (is_packet(buffer, received_len)) {
             read_len = read_header(&header, buffer);
             if (! valid_crc(buffer, read_len + header.size)) {
-                // erro no crc, quem chamou essa funcao manda um nack
-                fprintf(stderr, "Erro detectado pelo crc\n");
                 return INVALID_CRC;
             } else {
                 if (header.type == ACK) return RECEIVED_ACK;
@@ -121,30 +117,5 @@ int expect_response( int sockfd, char *buffer, int buffer_size, int timeout_ms )
         }
     } while ((timestamp() - start) < timeout_ms);
 
-    return TIMEOUT; // timeout
-}
-
-void catch_loopback( int sockfd, char *buffer, int buffer_size )
-{
-    int received_len, read_len;
-    struct packet_header_t header;
-    while (1) {
-        received_len = recvfrom(sockfd, buffer, buffer_size, 0, NULL, NULL);
-        if (received_len < 0) {
-            perror("erro em recvfrom");
-            close(sockfd);
-            exit(1);
-        }
-
-        if (is_packet(buffer, received_len)) {
-            read_len = read_header(&header, buffer);
-            if (! valid_crc(buffer, read_len + header.size)) {
-                // erro no crc, quem chamou essa funcao manda um nack
-                fprintf(stderr, "Erro detectado pelo crc\n");
-                exit(1);
-            } else {
-                printf("Loopback capturado, tipo %d\n", header.type);
-            }
-        }
-    }
+    return TIMEOUT;
 }

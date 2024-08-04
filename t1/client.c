@@ -50,7 +50,6 @@ int main ( int argc, char **argv ) {
     send_filename(sockfd, data, buffer, BUFFER_SIZE, ifindex);
     expect_descriptor(sockfd, buffer, BUFFER_SIZE, ifindex);
     expect_download(sockfd, TEMP_VIDEO_PATH, data, buffer, DATA_SIZE, BUFFER_SIZE, ifindex);
-    printf("Video recebido com sucesso, %s\n", TEMP_VIDEO_PATH);
 
     // receber descritor de arquivo
     // responder
@@ -94,9 +93,8 @@ void expect_show( int sockfd, char *data, char *buffer, int data_size, int buffe
         if (is_packet(buffer, received_len)) {
             read_len = read_header(&header, buffer);
             if (! valid_crc(buffer, read_len + header.size)) {
-                // erro no crc, manda um nack
-                fprintf(stderr, "Erro detectado pelo crc\n");
-                exit(1);
+                send_command(sockfd, buffer, ifindex, NACK);
+                printf("Erro detectado pelo crc\n");
             } else {
                 if (header.type == END) break;
 
@@ -156,9 +154,8 @@ void expect_descriptor( int sockfd, char *buffer, int buffer_size, int ifindex )
         if (is_packet(buffer, received_len)) {
             read_len = read_header(&header, buffer);
             if (! valid_crc(buffer, read_len + header.size)) {
-                // erro no crc, manda um nack
-                fprintf(stderr, "Erro detectado pelo crc\n");
-                exit(1);
+                printf("Erro detectado pelo crc\n");
+                send_command(sockfd, buffer, ifindex, NACK);
             } else {
                 if (header.type == DESCRIPTOR) {
                     send_command(sockfd, buffer, ifindex, ACK);
@@ -195,19 +192,23 @@ void expect_download( int sockfd, char *video_path, char *data, char *buffer, in
         if (is_packet(buffer, received_len)) {
             read_len = read_header(&header, buffer);
             if (! valid_crc(buffer, read_len + header.size)) {
-                // erro no crc, manda um nack
-                fprintf(stderr, "Erro detectado pelo crc\n");
-                exit(1);
+                printf("Erro detectado pelo crc\n");
+                send_command(sockfd, buffer, ifindex, NACK);
             } else {
                 if (header.type == END) {
                     send_command(sockfd, buffer, ifindex, ACK);
+                    printf("Video recebido com sucesso, %s\n", TEMP_VIDEO_PATH);
                     fclose(video);
-                    break; // fechar o arquivo aberto
+                    break;
+                }
+
+                if (header.type == ERROR) {
+                    printf("Erro na transmissao, interrompendo download\n");
+                    break;
                 }
 
                 if (header.type == DATA) {
                     fwrite(buffer + read_len, header.size, 1, video);
-                    //printf("Recebeu pedaco do video\n");
                     send_command(sockfd, buffer, ifindex, ACK);
                 }
             }

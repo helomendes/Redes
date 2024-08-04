@@ -47,19 +47,31 @@ int read_header( struct packet_header_t *header, char* buffer )
     return SIZEOF_INITMARKER + sizeof(unsigned short);
 }
 
+uint8_t calculate_crc(char *buffer, int bytes) {
+    uint8_t crc = 0;
+
+    for (int i = 0; i < bytes; ++i) {
+        crc ^= buffer[i];
+
+        for (uint8_t bit = 0; bit < 8; ++bit) {
+            if (crc & 0x80) crc = (crc << 1) ^ CRC_POLY;
+            else crc <<= 1;
+        }
+    }
+
+    return crc;
+}
+
+
 unsigned int write_crc( char *buffer, int bytes )
 {
-    unsigned char crc = 15;
-    memcpy(buffer + bytes, &crc, sizeof(unsigned char));
-    return sizeof(unsigned char);
+    uint8_t crc = calculate_crc(buffer, bytes);
+    buffer[bytes] = crc;
+    //memcpy(buffer + bytes, &crc, sizeof(unsigned char));
+    return sizeof(uint8_t);
 }
 
 int valid_crc( char *buffer, int bytes )
 {
-    unsigned char crc;
-    memcpy(&crc, buffer + bytes, sizeof(unsigned char));
-    // implementar verificacao de validade do crc
-    if (crc == 15)
-        return 1;
-    return 0;
+    return (calculate_crc(buffer, bytes + sizeof(uint8_t)) == 0);
 }

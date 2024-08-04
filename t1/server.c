@@ -54,8 +54,8 @@ int main ( int argc, char **argv ) {
         if (is_packet(buffer, received_len)) {
             read_len = read_header(&header, buffer);
             if (! valid_crc(buffer, read_len + header.size)) {
-                // erro no crc, mandar um nack
                 printf("Erro detectado pelo crc\n");
+                send_command(sockfd, buffer, ifindex, NACK);
             } else {
 
                 if (header.type == LIST) {
@@ -185,9 +185,8 @@ int expect_filename( int sockfd, char *buffer, char *data, int buffer_size, int 
         if (is_packet(buffer, received_len)) {
             read_len = read_header(&header, buffer);
             if (! valid_crc(buffer, read_len + header.size)) {
-                // erro no crc, quem chamou essa funcao manda um nack
-                fprintf(stderr, "Erro detectado pelo crc\n");
-                return 10;
+                printf("Erro detectado pelo crc\n");
+                send_command(sockfd, buffer, ifindex, NACK);
             } else {
                 if (header.type == DOWNLOAD) {
                     strncpy(data, buffer + read_len, header.size);
@@ -256,7 +255,7 @@ int send_descriptor( int sockfd, char *video_path, char *buffer, int buffer_size
     send_len += write_crc(buffer, send_len);
     send_packet(sockfd, buffer, send_len, ifindex);
     if (expect_response(sockfd, buffer, buffer_size, timeout_ms)) {
-        fprintf(stderr, "Recebeu erro\n");
+        fprintf(stderr, "Recebeu erro esperando ack do descritor\n");
         exit(1);
     }
     return 0;
@@ -338,8 +337,9 @@ int send_video( int sockfd, char *video_path, char *data, char *buffer, int data
     response = expect_response(sockfd, receive_buffer, buffer_size, timeout_ms);
     for (short try = 1; ((try <= 3) && (response != RECEIVED_ACK)); try++) {
         while ((response == TIMEOUT) && (timeout_ms < 4000)) {
+            send_command(sockfd, buffer, ifindex, END);
             timeout_ms = timeout_ms << 1;
-            response = expect_response(sockfd, buffer, buffer_size, timeout_ms);
+            response = expect_response(sockfd, receive_buffer, buffer_size, timeout_ms);
         }
 
         if (response == TIMEOUT) {
