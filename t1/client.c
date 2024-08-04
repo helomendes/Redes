@@ -38,9 +38,10 @@ int main ( int argc, char **argv ) {
     int ifindex = get_index(interface);
 
     int sockfd = create_raw_socket(interface);
+    int timeout_ms = 500;
 
     send_command(sockfd, buffer, ifindex, LIST);
-    if (expect_response(sockfd, buffer, BUFFER_SIZE)) {
+    if (expect_response(sockfd, buffer, BUFFER_SIZE, timeout_ms)) {
         printf("Recebeu erro\n");
         exit(1);
     }
@@ -131,8 +132,10 @@ void send_filename( int sockfd, char *data, char *buffer, int buffer_size, int i
     strncpy(buffer + send_len, data, header.size);
     send_len += header.size;
     send_len += write_crc(buffer, send_len);
+
+    int timeout_ms = 500;
     send_packet(sockfd, buffer, send_len, ifindex);
-    if (expect_response(sockfd, buffer, buffer_size)) {
+    if (expect_response(sockfd, buffer, buffer_size, timeout_ms)) {
         fprintf(stderr, "Recebeu erro\n");
         exit(1);
     }
@@ -197,13 +200,14 @@ void expect_download( int sockfd, char *video_path, char *data, char *buffer, in
                 exit(1);
             } else {
                 if (header.type == END) {
+                    send_command(sockfd, buffer, ifindex, ACK);
                     fclose(video);
                     break; // fechar o arquivo aberto
                 }
 
                 if (header.type == DATA) {
                     fwrite(buffer + read_len, header.size, 1, video);
-                    //printf("Escreveu %d bytes\n", header.size);
+                    //printf("Recebeu pedaco do video\n");
                     send_command(sockfd, buffer, ifindex, ACK);
                 }
             }

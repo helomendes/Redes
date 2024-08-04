@@ -76,7 +76,7 @@ int main ( int argc, char **argv ) {
                     }
                     printf("Enviando video...\n");
                     if (send_video(sockfd, video_path, data, buffer, DATA_SIZE, BUFFER_SIZE, ifindex)) {
-                        fprintf(stderr, "Erro ao enviar video\n");
+                        printf("Erro ao enviar video, interrompendo transferencia\n");
                         continue;
                     }
                     printf("Video enviado com sucesso\n");
@@ -137,6 +137,7 @@ void send_video_list( int sockfd, char *buffer, char *videos_dir, int ifindex )
     }
 
     int send_len;
+    int timeout_ms = 500;
     struct packet_header_t header = create_header();
     header.type = SHOW;
     header.sequence = 0;
@@ -156,7 +157,7 @@ void send_video_list( int sockfd, char *buffer, char *videos_dir, int ifindex )
             send_len += header.size;
             send_len += write_crc(buffer, send_len);
             send_packet(sockfd, buffer, send_len, ifindex);
-            if (expect_response(sockfd, buffer, BUFFER_SIZE)) {
+            if (expect_response(sockfd, buffer, BUFFER_SIZE, timeout_ms)) {
                 fprintf(stderr, "Nao recebeu ack, interrompendo transmissao\n");
                 return;
             }
@@ -248,12 +249,13 @@ int send_descriptor( int sockfd, char *video_path, char *buffer, int buffer_size
     file_size = s.st_size;
     header.size = 10;
 
+    int timeout_ms = 500;
     int send_len = write_header(header, buffer);
     memcpy(buffer + send_len, &file_size, sizeof(uint32_t));
     send_len += header.size;
     send_len += write_crc(buffer, send_len);
     send_packet(sockfd, buffer, send_len, ifindex);
-    if (expect_response(sockfd, buffer, buffer_size)) {
+    if (expect_response(sockfd, buffer, buffer_size, timeout_ms)) {
         fprintf(stderr, "Recebeu erro\n");
         exit(1);
     }
@@ -272,8 +274,10 @@ int send_video( int sockfd, char *video_path, char *data, char *buffer, int data
         return 1;
     }
 
-    int send_len;
+    short tries;
+    int send_len, response, timeout_ms;
     int read_bytes = fread(data, 1, data_size, video);
+    char receive_buffer[buffer_size];
     while (! feof(video)) {
         header.sequence++;
         header.size = read_bytes;
@@ -281,16 +285,74 @@ int send_video( int sockfd, char *video_path, char *data, char *buffer, int data
         memcpy(buffer + send_len, data, header.size);
         send_len += header.size;
         send_len += write_crc(buffer, send_len);
+
+        tries = 3;
         send_packet(sockfd, buffer, send_len, ifindex);
-        if (expect_response(sockfd, buffer, buffer_size)) {
-            fprintf(stderr, "Recebeu erro\n");
-            fclose(video);
-            exit(1);
+        //printf("Pacote enviado, aguardando confirmacao de recebimento...\n");
+        timeout_ms = 500;
+        response = expect_response(sockfd, receive_buffer, buffer_size, timeout_ms);
+        for (short try = 1; ((try <= 3) && (response != RECEIVED_ACK)); try++) {
+            while ((response == TIMEOUT) && (timeout_ms < 4000)) {
+                send_packet(sockfd, buffer, send_len, ifindex);
+                timeout_ms = timeout_ms << 1;
+                response = expect_response(sockfd, receive_buffer, buffer_size, timeout_ms);
+            }
+
+            switch (response) {
+                case TIMEOUT:
+                    printf("Timeout limite atingido\n");
+                    return 1;
+                    break;
+
+                case RECEIVED_NACK:
+                    printf("Recebeu um nack na tentativa %d de %d, tentando novamente\n", try, tries);
+                    break;
+
+                case RECEIVED_ERROR:
+                    printf("Recebeu um erro\n");
+                    return 1;
+                    // interromper transmissao ?
+                    break;
+
+                case INVALID_CRC:
+                    printf("Pacote chegou corrompido no server\n");
+                    // o que fazer aqui? esperar client reenviar? mandar um nack?
+                    return 1;
+                    break;
+
+                case UNEXPECTED_TYPE:
+                    printf("Recebeu um pacote de tipo inesperado\n");
+                    return 1;
+                    // e o que fazer aqui?
+                    break;
+            }
         }
+
+        //printf("Pacote recebido pelo client com sucesso\n");
         read_bytes = fread(data, 1, data_size, video);
     }
 
+    tries = 3;
+    timeout_ms = 500;
     send_command(sockfd, buffer, ifindex, END);
+    response = expect_response(sockfd, receive_buffer, buffer_size, timeout_ms);
+    for (short try = 1; ((try <= 3) && (response != RECEIVED_ACK)); try++) {
+        while ((response == TIMEOUT) && (timeout_ms < 4000)) {
+            timeout_ms = timeout_ms << 1;
+            response = expect_response(sockfd, buffer, buffer_size, timeout_ms);
+        }
+
+        if (response == TIMEOUT) {
+            printf("Timeout ao entregar o end\n");
+            break;
+        }
+    }
+
+    if (response != RECEIVED_ACK) {
+        printf("Falhou em entregar o END\n");
+        return 1;
+    }
+
     fclose(video);
     return 0;
 }

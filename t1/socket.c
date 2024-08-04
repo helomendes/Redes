@@ -5,6 +5,7 @@
 #include <net/if.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <sys/time.h>
 
 #include "socket.h"
 #include "packet.h"
@@ -50,20 +51,12 @@ void send_packet(int sockfd, char* buffer, int bytes, int ifindex)
     addr.sll_protocol = htons(ETH_P_ALL);
     addr.sll_ifindex = ifindex;
 
-#ifdef LOOPBACK
-    printf("Enviando pacote\n");
-#endif
-
     if (sendto(sockfd, buffer, bytes, 0, (struct sockaddr *) &addr, sizeof(struct sockaddr_ll)) < 0) {
         perror("sendto");
         exit(1);
     }
-
-#ifdef LOOPBACK
-    catch_loopback(sockfd, buffer, bytes);
-#endif
-
 }
+
 void send_command( int sockfd, char *buffer, int ifindex, unsigned char command )
 {
     if ((command != ACK) && (command != NACK) && (command != LIST) && (command != END)) {
@@ -84,26 +77,25 @@ void send_command( int sockfd, char *buffer, int ifindex, unsigned char command 
     addr.sll_protocol = htons(ETH_P_ALL);
     addr.sll_ifindex = ifindex;
 
-#ifdef LOOPBACK
-    printf("Enviando comando do tipo %d\n", command);
-#endif
-
     if (sendto(sockfd, buffer, send_len, 0, (struct sockaddr *) &addr, sizeof(struct sockaddr_ll)) < 0) {
         perror("sendto");
         exit(1);
     }
-
-#ifdef LOOPBACK
-    catch_loopback(sockfd, buffer, send_len);
-#endif
 }
 
-int expect_response( int sockfd, char *buffer, int buffer_size )
+long long timestamp() {
+    struct timeval t;
+    gettimeofday(&t, NULL);
+    return ((t.tv_sec*1000) + (t.tv_usec/1000));
+}
+
+int expect_response( int sockfd, char *buffer, int buffer_size, int timeout_ms )
 {
     // TODO: incluir timeout depois
     int received_len, read_len;
     struct packet_header_t header;
-    while (1) {
+    long long start = timestamp();
+    do {
         received_len = recvfrom(sockfd, buffer, buffer_size, 0, NULL, NULL);
         if (received_len < 0) {
             perror("erro em recvfrom");
@@ -116,23 +108,20 @@ int expect_response( int sockfd, char *buffer, int buffer_size )
             if (! valid_crc(buffer, read_len + header.size)) {
                 // erro no crc, quem chamou essa funcao manda um nack
                 fprintf(stderr, "Erro detectado pelo crc\n");
-                return 10;
+                return INVALID_CRC;
             } else {
-#ifdef LOOPBACK
-                printf("Resposta recebida do tipo %d\n", header.type);
-#endif
-                if (header.type == ACK) return 0;
-                else if (header.type == NACK) return 1;
-                else if (header.type == ERROR) return 2;
+                if (header.type == ACK) return RECEIVED_ACK;
+                else if (header.type == NACK) return RECEIVED_NACK;
+                else if (header.type == ERROR) return RECEIVED_ERROR;
                 else {
-                    printf("Resposta recebida: %d\n", (int) header.type);
-                    return 3;
+                    printf("Resposta de tipo inesperado recebida: %d\n", (int) header.type);
+                    return UNEXPECTED_TYPE;
                 }
             }
         }
-    }
+    } while ((timestamp() - start) < timeout_ms);
 
-    return 0;
+    return TIMEOUT; // timeout
 }
 
 void catch_loopback( int sockfd, char *buffer, int buffer_size )
