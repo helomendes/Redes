@@ -327,7 +327,6 @@ int send_video( int sockfd, char *video_path, char *data, char *buffer, int data
             }
         }
 
-        //printf("Pacote recebido pelo client com sucesso\n");
         read_bytes = fread(data, 1, data_size, video);
     }
 
