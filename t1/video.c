@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <dirent.h>
 
 #include "video.h"
 
@@ -57,3 +58,14 @@ void create_video_path( char *videos_dir, char *video_basename, char *video_path
     strcpy(video_path + null_char, video_basename);
 }
 
+void play_video( char *path )
+{
+    char command[PATH_MAX];
+    snprintf(command, PATH_MAX, "xdg-open \"%s\"", path);
+
+    int result = system(command);
+    if (result == -1) {
+        printf("Erro ao reproduzir o video %s\n", path);
+        exit(1);
+    }
+}

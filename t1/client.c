@@ -49,13 +49,15 @@ int main ( int argc, char **argv ) {
 
     printf("Lista dos videos disponiveis:\n");
     expect_show(sockfd, data, buffer, DATA_SIZE, BUFFER_SIZE, ifindex);
-    
+
     send_filename(sockfd, data, buffer, BUFFER_SIZE, ifindex);
     create_video_path(videos_dir, data, video_path);
     expect_descriptor(sockfd, buffer, BUFFER_SIZE, ifindex);
 
     printf("Baixando video...\n");
     expect_download(sockfd, video_path, data, buffer, DATA_SIZE, BUFFER_SIZE, ifindex);
+
+    play_video(video_path);
 
     close(sockfd);
     return 0;
