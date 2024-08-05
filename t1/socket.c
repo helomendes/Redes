@@ -134,10 +134,10 @@ long long timestamp() {
     return ((t.tv_sec*1000) + (t.tv_usec/1000));
 }
 
-int remove_vlan_bytes( char *buffer, char *receive_buffer, int bytes )
+int remove_vlan_bytes( char *buffer, char *receive_buffer, int buffer_size, int bytes )
 {
     int shift = 0;
-    for (int i = 0; (i + shift) < bytes; i++) {
+    for (int i = 0; (((i + shift) < bytes) && (i < buffer_size)); i++) {
         buffer[i] = receive_buffer[i + shift];
         if ((((unsigned char)receive_buffer[i + shift] == 0x88) || ((unsigned char)receive_buffer[i + shift] == 0x81)) && ((unsigned char)receive_buffer[i+shift+1] == 0xff)) shift++;
     }
@@ -148,7 +148,7 @@ int receive_packet( int sockfd, char *buffer, int buffer_size )
 {
     char receive_buffer[buffer_size * 2];
     int received_len = recvfrom(sockfd, receive_buffer, buffer_size * 2, 0, NULL, NULL);
-    received_len -= remove_vlan_bytes(buffer, receive_buffer, received_len);
+    received_len -= remove_vlan_bytes(buffer, receive_buffer, buffer_size, received_len);
     return received_len;
 }
 
