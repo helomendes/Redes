@@ -316,9 +316,9 @@ int send_video( int sockfd, char *video_path, char *data, char *buffer, int data
                     break;
 
                 case INVALID_CRC:
-                    printf("Pacote chegou corrompido no server\n");
+                    printf("Resposta do client chegou corrompida na tentativa %d de %d, tentando novamente\n", try, tries);
                     // o que fazer aqui? esperar client reenviar? mandar um nack?
-                    return 1;
+                    // tentar de novo
                     break;
 
                 case UNEXPECTED_TYPE:

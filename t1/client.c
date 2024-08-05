@@ -200,6 +200,7 @@ void expect_download( int sockfd, char *video_path, char *data, char *buffer, in
 
     struct packet_header_t header;
     int received_len, read_len;
+    short last_sequence = 0;
     while (1) {
         received_len = recvfrom(sockfd, buffer, buffer_size, 0, NULL, NULL);
         if (received_len < 0) {
@@ -227,7 +228,10 @@ void expect_download( int sockfd, char *video_path, char *data, char *buffer, in
                 }
 
                 if (header.type == DATA) {
-                    fwrite(buffer + read_len, header.size, 1, video);
+                    if ((header.sequence  > last_sequence) || ((header.sequence == 0) && (header.sequence - 1 == last_sequence))) {
+                        fwrite(buffer + read_len, header.size, 1, video);
+                        last_sequence = header.sequence;
+                    }
                     send_command(sockfd, buffer, ifindex, ACK);
                 }
             }
