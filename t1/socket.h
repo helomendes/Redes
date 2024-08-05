@@ -12,6 +12,8 @@ typedef enum {
 
 int create_raw_socket( char *interface );
 
+int receive_packet( int sockfd, char *buffer, int buffer_size );
+
 void send_packet( int sockfd, char *buffer, int bytes, int ifindex );
 
 void send_command( int sockfd, char *buffer, int ifindex, unsigned char command );

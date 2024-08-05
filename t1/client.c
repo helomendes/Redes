@@ -102,7 +102,8 @@ void expect_show( int sockfd, char *data, char *buffer, int data_size, int buffe
     struct packet_header_t header;
     int received_len, read_len;
     while (1) {
-        received_len = recvfrom(sockfd, buffer, buffer_size, 0, NULL, NULL);
+        //received_len = recvfrom(sockfd, buffer, buffer_size, 0, NULL, NULL);
+        received_len = receive_packet(sockfd, buffer, buffer_size);
         if (received_len < 0) {
             perror("erro em recvfrom");
             close(sockfd);
@@ -163,7 +164,8 @@ void expect_descriptor( int sockfd, char *buffer, int buffer_size, int ifindex )
     struct packet_header_t header;
     int received_len, read_len;
     while (1) {
-        received_len = recvfrom(sockfd, buffer, buffer_size, 0, NULL, NULL);
+        //received_len = recvfrom(sockfd, buffer, buffer_size, 0, NULL, NULL);
+        received_len = receive_packet(sockfd, buffer, buffer_size);
         if (received_len < 0) {
             perror("erro em recvfrom");
             close(sockfd);
@@ -202,7 +204,8 @@ void expect_download( int sockfd, char *video_path, char *data, char *buffer, in
     int received_len, read_len;
     short last_sequence = 0;
     while (1) {
-        received_len = recvfrom(sockfd, buffer, buffer_size, 0, NULL, NULL);
+        //received_len = recvfrom(sockfd, buffer, buffer_size, 0, NULL, NULL);
+        received_len = receive_packet(sockfd, buffer, buffer_size);
         if (received_len < 0) {
             perror("erro em recvfrom");
             close(sockfd);

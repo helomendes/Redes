@@ -44,7 +44,7 @@ int main ( int argc, char **argv ) {
 
     char buffer[BUFFER_SIZE], data[DATA_SIZE];
     while (1) {
-        received_len = recvfrom(sockfd, buffer, BUFFER_SIZE, 0, NULL, NULL);
+        received_len = receive_packet(sockfd, buffer, BUFFER_SIZE);
         if (received_len < 0) {
             perror("erro em recvfrom");
             close(sockfd);
@@ -178,7 +178,7 @@ int expect_filename( int sockfd, char *buffer, char *data, int buffer_size, int 
     int received_len, read_len;
     struct packet_header_t header;
     while (1) {
-        received_len = recvfrom(sockfd, buffer, buffer_size, 0, NULL, NULL);
+        received_len = receive_packet(sockfd, buffer, buffer_size);
         if (received_len < 0) {
             perror("erro em recvfrom");
             close(sockfd);
@@ -295,8 +295,8 @@ int send_video( int sockfd, char *video_path, char *data, char *buffer, int data
         response = expect_response(sockfd, receive_buffer, buffer_size, timeout_ms);
         for (short try = 1; ((try <= tries) && (response != RECEIVED_ACK)); try++) {
             while ((response == TIMEOUT) && (timeout_ms < 4000)) {
-                send_packet(sockfd, buffer, send_len, ifindex);
                 timeout_ms = timeout_ms << 1;
+                send_packet(sockfd, buffer, send_len, ifindex);
                 response = expect_response(sockfd, receive_buffer, buffer_size, timeout_ms);
             }
 
@@ -305,7 +305,6 @@ int send_video( int sockfd, char *video_path, char *data, char *buffer, int data
                     printf("Timeout limite atingido\n");
                     fclose(video);
                     return 1;
-                    break;
 
                 case RECEIVED_NACK:
                     printf("Recebeu um nack na tentativa %d de %d, tentando novamente\n", try, tries);
@@ -316,7 +315,6 @@ int send_video( int sockfd, char *video_path, char *data, char *buffer, int data
                     fclose(video);
                     return 1;
                     // interromper transmissao ?
-                    break;
 
                 case INVALID_CRC:
                     printf("Resposta do client chegou corrompida na tentativa %d de %d, tentando novamente\n", try, tries);
@@ -329,7 +327,12 @@ int send_video( int sockfd, char *video_path, char *data, char *buffer, int data
                     fclose(video);
                     return 1;
                     // e o que fazer aqui?
-                    break;
+            }
+
+            if (response != RECEIVED_ACK) {
+                timeout_ms = 500;
+                send_packet(sockfd, buffer, send_len, ifindex);
+                response = expect_response(sockfd, receive_buffer, buffer_size, timeout_ms);
             }
         }
 

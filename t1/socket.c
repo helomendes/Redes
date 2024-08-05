@@ -45,6 +45,19 @@ int create_raw_socket( char* interface )
     return sockfd;
 }
 
+int add_vlan_bytes(char *send_buffer, char *buffer, int bytes)
+{
+    int shift = 0;
+    for (int i = 0; i < bytes; i++) {
+        send_buffer[i + shift] = buffer[i];
+        if (((unsigned char)buffer[i] == 0x88) || ((unsigned char)buffer[i] == 0x81)) {
+            shift++;
+            send_buffer[i + shift] = (unsigned char)0xff;
+        }
+    }
+    return shift;
+}
+
 void send_packet(int sockfd, char* buffer, int bytes, int ifindex)
 {
     struct sockaddr_ll addr = {0};
@@ -52,12 +65,10 @@ void send_packet(int sockfd, char* buffer, int bytes, int ifindex)
     addr.sll_protocol = htons(ETH_P_ALL);
     addr.sll_ifindex = ifindex;
 
-    //for (int i = 0; i < bytes; i++) {
-    //    if (((unsigned char)buffer[i] == 0x88) || ((unsigned char)buffer[i] == 0x81))
-    //        printf("Byte problematico encontrado no pacote, pode causar erro\n");
-    //}
+    char send_buffer[bytes * 2];
+    bytes += add_vlan_bytes(send_buffer, buffer, bytes);
 
-    if (sendto(sockfd, buffer, bytes, 0, (struct sockaddr *) &addr, sizeof(struct sockaddr_ll)) < 0) {
+    if (sendto(sockfd, send_buffer, bytes, 0, (struct sockaddr *) &addr, sizeof(struct sockaddr_ll)) < 0) {
         perror("sendto");
         exit(1);
     }
@@ -83,12 +94,10 @@ void send_command( int sockfd, char *buffer, int ifindex, unsigned char command 
     addr.sll_protocol = htons(ETH_P_ALL);
     addr.sll_ifindex = ifindex;
 
-    //for (int i = 0; i < send_len; i++) {
-    //    if (((unsigned char)buffer[i] == 0x88) || ((unsigned char)buffer[i] == 0x81))
-    //        printf("Byte problematico encontrado no pacote, pode causar erro\n");
-    //}
+    char send_buffer[send_len * 2];
+    send_len += add_vlan_bytes(send_buffer, buffer, send_len);
 
-    if (sendto(sockfd, buffer, send_len, 0, (struct sockaddr *) &addr, sizeof(struct sockaddr_ll)) < 0) {
+    if (sendto(sockfd, send_buffer, send_len, 0, (struct sockaddr *) &addr, sizeof(struct sockaddr_ll)) < 0) {
         perror("sendto");
         exit(1);
     }
@@ -110,12 +119,10 @@ void send_error( int sockfd, char *buffer, int ifindex, unsigned char error )
     addr.sll_protocol = htons(ETH_P_ALL);
     addr.sll_ifindex = ifindex;
 
-    //for (int i = 0; i < send_len; i++) {
-    //    if (((unsigned char)buffer[i] == 0x88) || ((unsigned char)buffer[i] == 0x81))
-    //        printf("Byte problematico encontrado no pacote, pode causar erro\n");
-    //}
+    char send_buffer[send_len * 2];
+    send_len += add_vlan_bytes(send_buffer, buffer, send_len);
 
-    if (sendto(sockfd, buffer, send_len, 0, (struct sockaddr *) &addr, sizeof(struct sockaddr_ll)) < 0) {
+    if (sendto(sockfd, send_buffer, send_len, 0, (struct sockaddr *) &addr, sizeof(struct sockaddr_ll)) < 0) {
         perror("sendto");
         exit(1);
     }
@@ -127,13 +134,32 @@ long long timestamp() {
     return ((t.tv_sec*1000) + (t.tv_usec/1000));
 }
 
+int remove_vlan_bytes( char *buffer, char *receive_buffer, int bytes )
+{
+    int shift = 0;
+    for (int i = 0; (i - shift) < bytes; i++) {
+        buffer[i] = receive_buffer[i + shift];
+        if ((((unsigned char)receive_buffer[i] == 0x88) || ((unsigned char)receive_buffer[i] == 0x81)) && ((unsigned char)receive_buffer[i+1] == 0xff)) shift++;
+    }
+    return shift;
+}
+
+int receive_packet( int sockfd, char *buffer, int buffer_size )
+{
+    char receive_buffer[buffer_size * 2];
+    int received_len = recvfrom(sockfd, receive_buffer, buffer_size * 2, 0, NULL, NULL);
+    received_len -= remove_vlan_bytes(buffer, receive_buffer, received_len);
+    return received_len;
+}
+
 int expect_response( int sockfd, char *buffer, int buffer_size, int timeout_ms )
 {
     int received_len, read_len;
     struct packet_header_t header;
     long long start = timestamp();
     do {
-        received_len = recvfrom(sockfd, buffer, buffer_size, 0, NULL, NULL);
+        //received_len = recvfrom(sockfd, receive_buffer, buffer_size, 0, NULL, NULL);
+        received_len = receive_packet(sockfd, buffer, buffer_size);
         if (received_len < 0) {
             perror("erro em recvfrom");
             close(sockfd);
