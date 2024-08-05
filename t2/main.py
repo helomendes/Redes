@@ -13,11 +13,5 @@ def main():
     ntw.establish_network(player, msg)
     game.start(ntw, player, msg)
 
-
-#   definir o carteador (começa sendo o player 1)
-#       começa sendo o player 1
-#       depois é quem ganhar o jogo
-#   começar o jogo
-
 if __name__=='__main__':
     main()

@@ -7,6 +7,12 @@ class Network:
         self.create_socket()
         self.ports = [[2000, 2001], [2001, 2002], [2002, 2003], [2003, 2000]]
         self.token = None
+        self.players = {
+                ('localhost', 2000): 1,
+                ('localhost', 2001): 2,
+                ('localhost', 2002): 3,
+                ('localhost', 2003): 4
+                }
 
     def create_socket(self):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -25,10 +31,7 @@ class Network:
             player.token = True
 
     def pass_token(self, msg, player):
-        self.token['origin'] = player.org_addr
-        self.token['destination'] = player.dest_addr
         msg.send_message(self, player, self.token)
-        player.token = False
 
     def receive_token(self, player, data):
         self.token = data

@@ -16,3 +16,9 @@ class Cards:
     
     def draw_card(self):
         return random.choice(self.deck)
+   
+    def show_hand(self, player):
+        print()
+        for card in player.hand:
+            print(card, '   ', end='')
+        print('\n')
