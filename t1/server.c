@@ -38,7 +38,7 @@ int main ( int argc, char **argv ) {
     strncpy(videos_dir, argv[2], PATH_MAX);
     is_dir(videos_dir);
     preprocess_video_path(videos_dir);
-    printf("Diretorio dos videos do servidor: %s\n", videos_dir);
+    printf("diretorio dos videos: %s\n", videos_dir);
 
     int sockfd = create_raw_socket(interface);
     struct packet_header_t header;
@@ -60,9 +60,8 @@ int main ( int argc, char **argv ) {
             } else {
 
                 if (header.type == LIST) {
-                    printf("Recebeu pedido de lista\n");
                     send_command(sockfd, buffer, ifindex, ACK);
-                    printf("Enviando lista de videos\n");
+                    printf("Enviando lista de videos...\n");
                     if (send_video_list(sockfd, buffer, videos_dir, BUFFER_SIZE, ifindex)) {
                         printf("Erro ao enviar lista de nomes de arquivo, encerrando conexao\n");
                         continue;
@@ -72,6 +71,7 @@ int main ( int argc, char **argv ) {
                         fprintf(stderr, "Erro ao receber nome de arquivo\n");
                         continue;
                     }
+
                     printf("Nome de arquivo recebido: %s\n", data);
                     send_command(sockfd, buffer, ifindex, ACK);
 
@@ -83,7 +83,6 @@ int main ( int argc, char **argv ) {
                     printf("Enviando video...\n");
                     if (send_video(sockfd, video_path, data, buffer, DATA_SIZE, BUFFER_SIZE, ifindex)) {
                         printf("Erro ao enviar video, interrompendo transferencia\n");
-                        exit(1);
                         continue;
                     }
                     printf("Video enviado com sucesso\n");
@@ -167,7 +166,6 @@ int send_video_list( int sockfd, char *buffer, char *videos_dir, int buffer_size
             send_len += write_crc(buffer, send_len);
 
             timeout_ms = 500;
-            printf("enviando video %s\n", ep->d_name);
             send_packet(sockfd, buffer, send_len, ifindex);
             response = expect_response(sockfd, receive_buffer, buffer_size, timeout_ms);
             for (short try = 1; ((try <= tries) && (response != RECEIVED_ACK)); try++) {
@@ -271,7 +269,7 @@ int send_descriptor( int sockfd, char *video_path, char *buffer, int buffer_size
     uint32_t file_size;
     struct stat s;
     if (stat(video_path, &s)) {
-        fprintf(stderr, "Erro ao acessar arquivo de video\n");
+        fprintf(stderr, "Erro ao acessar arquivo de video: %s\n", video_path);
         // joga erro para o client
         return 1;
     }
@@ -319,7 +317,7 @@ int send_video( int sockfd, char *video_path, char *data, char *buffer, int data
         tries = 5;
         timeout_ms = 500;
         send_packet(sockfd, buffer, send_len, ifindex);
-        //printf("Pacote enviado, aguardando confirmacao de recebimento...\n");
+        printf("Pacote de sequencia %d enviado, aguardando confirmacao de recebimento...\n", header.sequence);
         response = expect_response(sockfd, receive_buffer, buffer_size, timeout_ms);
         for (short try = 1; ((try <= tries) && (response != RECEIVED_ACK)); try++) {
             while ((response == TIMEOUT) && (timeout_ms < 4000)) {
@@ -328,50 +326,42 @@ int send_video( int sockfd, char *video_path, char *data, char *buffer, int data
                 response = expect_response(sockfd, receive_buffer, buffer_size, timeout_ms);
             }
 
-            switch (response) {
-                case TIMEOUT:
-                    printf("Timeout limite atingido\n");
-                    fclose(video);
-                    return 1;
-
-                case RECEIVED_NACK:
-                    printf("Recebeu um nack na tentativa %d de %d, tentando novamente\n", try, tries);
-                    break;
-
-                case RECEIVED_ERROR:
-                    printf("Recebeu um erro\n");
-                    fclose(video);
-                    return 1;
-                    // interromper transmissao ?
-
-                case INVALID_CRC:
-                    printf("Resposta do client chegou corrompida na tentativa %d de %d, tentando novamente\n", try, tries);
-                    // o que fazer aqui? esperar client reenviar? mandar um nack?
-                    // tentar de novo
-                    break;
-
-                case UNEXPECTED_TYPE:
-                    printf("Recebeu um pacote de tipo inesperado\n");
-                    fclose(video);
-                    return 1;
-                    // e o que fazer aqui?
+            if (response == RECEIVED_ACK) {
+                break;
+            } else if (response == TIMEOUT) {
+                printf("Timeout limite atingido\n");
+                fclose(video);
+                return 1;
+            } else if (response == RECEIVED_NACK) {
+                printf("Recebeu um nack na tentativa %d de %d\n", try, tries);
+            } else if (response == INVALID_CRC) {
+                printf("CRC invalido na resposta do client na tentativa %d de %d\n", try, tries);
+            } else if (response == RECEIVED_ERROR) {
+                printf("Recebeu um erro\n");
+                fclose(video);
+                return 1;
+            } else if  (response == UNEXPECTED_TYPE) {
+                printf("Recebeu um pacote de tipo inesperado\n");
+                fclose(video);
+                return 1;
             }
 
-            if (response != RECEIVED_ACK) {
-                timeout_ms = 500;
-                send_packet(sockfd, buffer, send_len, ifindex);
-                response = expect_response(sockfd, receive_buffer, buffer_size, timeout_ms);
-            }
+            timeout_ms = 500;
+            send_packet(sockfd, buffer, send_len, ifindex);
+            response = expect_response(sockfd, receive_buffer, buffer_size, timeout_ms);
         }
 
         if (response == RECEIVED_NACK) {
             printf("Limite de NACKs recebido pelo servidor, encerrando transmissao\n");
+            for (int i = 0; i < send_len; i++) printf("%02X ", (unsigned char) buffer[i]);
+            printf("\n");
             break;
         }
 
-        printf("pacote de sequencia %d recebido pelo client\n", header.sequence);
+        printf("Pacote de sequencia %d recebido pelo client\n", header.sequence);
         read_bytes = fread(data, 1, data_size, video);
     }
+    fclose(video);
 
     tries = 3;
     timeout_ms = 500;
@@ -392,6 +382,9 @@ int send_video( int sockfd, char *video_path, char *data, char *buffer, int data
 
             timeout_ms = 500;
         }
+
+        return 1;
+
     } else {
         send_command(sockfd, buffer, ifindex, END);
         response = expect_response(sockfd, receive_buffer, buffer_size, timeout_ms);
@@ -411,6 +404,5 @@ int send_video( int sockfd, char *video_path, char *data, char *buffer, int data
         }
     }
 
-    fclose(video);
-    return 0;
+    return 1;
 }

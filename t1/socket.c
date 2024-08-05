@@ -137,9 +137,9 @@ long long timestamp() {
 int remove_vlan_bytes( char *buffer, char *receive_buffer, int bytes )
 {
     int shift = 0;
-    for (int i = 0; (i - shift) < bytes; i++) {
+    for (int i = 0; (i + shift) < bytes; i++) {
         buffer[i] = receive_buffer[i + shift];
-        if ((((unsigned char)receive_buffer[i] == 0x88) || ((unsigned char)receive_buffer[i] == 0x81)) && ((unsigned char)receive_buffer[i+1] == 0xff)) shift++;
+        if ((((unsigned char)receive_buffer[i + shift] == 0x88) || ((unsigned char)receive_buffer[i + shift] == 0x81)) && ((unsigned char)receive_buffer[i+shift+1] == 0xff)) shift++;
     }
     return shift;
 }
