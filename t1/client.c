@@ -208,7 +208,8 @@ void expect_download( int sockfd, char *video_path, char *data, char *buffer, in
 
     struct packet_header_t header;
     int received_len, read_len;
-    short last_sequence = 0;
+    unsigned short last_sequence = 0;
+    uint32_t writen_bytes = 0;
     while (1) {
         //received_len = recvfrom(sockfd, buffer, buffer_size, 0, NULL, NULL);
         received_len = receive_packet(sockfd, buffer, buffer_size);
@@ -242,7 +243,11 @@ void expect_download( int sockfd, char *video_path, char *data, char *buffer, in
                 if (header.type == DATA) {
                     if ((header.sequence  > last_sequence) || ((header.sequence == 0) && (header.sequence - 1 == last_sequence))) {
                         fwrite(buffer + read_len, header.size, 1, video);
+                        writen_bytes += header.size;
                         last_sequence = header.sequence;
+                    } else {
+                        printf("Last Sequence: %d\n", last_sequence);
+                        printf("header.sequence: %d\n", (unsigned short) header.sequence);
                     }
                     send_command(sockfd, buffer, ifindex, ACK);
                 } else {
@@ -251,4 +256,5 @@ void expect_download( int sockfd, char *video_path, char *data, char *buffer, in
             }
         }
     }
+    printf("Bytes escritos: %d\n", writen_bytes);
 }

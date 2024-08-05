@@ -75,7 +75,9 @@ int main ( int argc, char **argv ) {
                     printf("Nome de arquivo recebido: %s\n", data);
                     send_command(sockfd, buffer, ifindex, ACK);
 
+                    //printf("Diretorio dos videos: '%s'\n", videos_dir);
                     create_video_path(videos_dir, data, video_path);
+                    //printf("Caminho do video: '%s'\n", video_path);
                     if (send_descriptor(sockfd, video_path, buffer, BUFFER_SIZE, ifindex)) {
                         fprintf(stderr, "Erro ao enviar descritor de arquivo\n");
                         continue;
@@ -138,7 +140,7 @@ int send_video_list( int sockfd, char *buffer, char *videos_dir, int buffer_size
     struct dirent *ep;
     int filename_size;
     if (! dp) {
-        fprintf(stderr, "Falha ao abrir o diretorio %s\n", videos_dir);
+        fprintf(stderr, "Falha ao abrir o diretorio '%s'\n", videos_dir);
         exit(1);
     }
 
@@ -236,7 +238,7 @@ void preprocess_video_path( char *videos_dir )
     int null_char = 0;
     while (videos_dir[null_char] != '\0') null_char++;
     if (null_char == 0) {
-        fprintf(stderr, "Erro ao processar caminho para os videos\n");
+        printf("Erro ao processar caminho para os videos: '%s'\n", videos_dir);
         exit(1);
     }
     if (videos_dir[null_char-1] != '/') {
@@ -250,7 +252,9 @@ void create_video_path( char *videos_dir, char *video_basename, char *video_path
     int null_char = 0;
     while (videos_dir[null_char] != '\0') null_char++;
     if (null_char == 0) {
-        fprintf(stderr, "Erro ao processar caminho para os videos\n");
+        printf("Erro ao criar caminho para o video escolhido\n");
+        printf("Diretorio dos videos: %s\n", videos_dir);
+        printf("Video escolhidos: %s\n", video_basename);
         exit(1);
     }
     strncpy(video_path, videos_dir, null_char);
@@ -328,7 +332,6 @@ int send_video( int sockfd, char *video_path, char *data, char *buffer, int data
             }
 
             if (response == RECEIVED_ACK) {
-                transfered_bytes += read_bytes;
                 break;
             } else if (response == TIMEOUT) {
                 printf("Timeout limite atingido\n");
@@ -361,6 +364,7 @@ int send_video( int sockfd, char *video_path, char *data, char *buffer, int data
         }
 
         //printf("Pacote de sequencia %d recebido pelo client\n", header.sequence);
+        transfered_bytes += read_bytes;
         read_bytes = fread(data, 1, data_size, video);
     }
     fclose(video);
