@@ -217,13 +217,14 @@ void expect_download( int sockfd, char *video_path, char *data, char *buffer, in
             } else {
                 if (header.type == END) {
                     send_command(sockfd, buffer, ifindex, ACK);
-                    printf("Video recebido com sucesso, %s\n", TEMP_VIDEO_PATH);
+                    printf("Video recebido com sucesso, %s\n", video_path);
                     fclose(video);
                     break;
                 }
 
                 if (header.type == ERROR) {
                     printf("Erro na transmissao, interrompendo download\n");
+                    fclose(video);
                     break;
                 }
 

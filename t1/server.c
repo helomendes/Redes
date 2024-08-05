@@ -79,6 +79,7 @@ int main ( int argc, char **argv ) {
                     printf("Enviando video...\n");
                     if (send_video(sockfd, video_path, data, buffer, DATA_SIZE, BUFFER_SIZE, ifindex)) {
                         printf("Erro ao enviar video, interrompendo transferencia\n");
+                        exit(1);
                         continue;
                     }
                     printf("Video enviado com sucesso\n");
@@ -287,12 +288,12 @@ int send_video( int sockfd, char *video_path, char *data, char *buffer, int data
         send_len += header.size;
         send_len += write_crc(buffer, send_len);
 
-        tries = 3;
+        tries = 5;
         send_packet(sockfd, buffer, send_len, ifindex);
         //printf("Pacote enviado, aguardando confirmacao de recebimento...\n");
         timeout_ms = 500;
         response = expect_response(sockfd, receive_buffer, buffer_size, timeout_ms);
-        for (short try = 1; ((try <= 3) && (response != RECEIVED_ACK)); try++) {
+        for (short try = 1; ((try <= tries) && (response != RECEIVED_ACK)); try++) {
             while ((response == TIMEOUT) && (timeout_ms < 4000)) {
                 send_packet(sockfd, buffer, send_len, ifindex);
                 timeout_ms = timeout_ms << 1;
@@ -302,6 +303,7 @@ int send_video( int sockfd, char *video_path, char *data, char *buffer, int data
             switch (response) {
                 case TIMEOUT:
                     printf("Timeout limite atingido\n");
+                    fclose(video);
                     return 1;
                     break;
 
@@ -311,6 +313,7 @@ int send_video( int sockfd, char *video_path, char *data, char *buffer, int data
 
                 case RECEIVED_ERROR:
                     printf("Recebeu um erro\n");
+                    fclose(video);
                     return 1;
                     // interromper transmissao ?
                     break;
@@ -323,6 +326,7 @@ int send_video( int sockfd, char *video_path, char *data, char *buffer, int data
 
                 case UNEXPECTED_TYPE:
                     printf("Recebeu um pacote de tipo inesperado\n");
+                    fclose(video);
                     return 1;
                     // e o que fazer aqui?
                     break;
@@ -334,42 +338,45 @@ int send_video( int sockfd, char *video_path, char *data, char *buffer, int data
             break;
         }
 
+        printf("pacote de sequencia %d recebido pelo client\n", header.sequence);
         read_bytes = fread(data, 1, data_size, video);
     }
 
     tries = 3;
     timeout_ms = 500;
-    if (response == RECEIVED_NACK) {
+    if (response != RECEIVED_ACK) {
         send_error(sockfd, buffer, ifindex, ATTEMPT_LIMIT);
         response = expect_response(sockfd, receive_buffer, buffer_size, timeout_ms);
-        for (short try = 1; ((try <= 3) && (response != RECEIVED_ACK)); try++) {
+        for (short try = 1; ((try <= tries) && (response != RECEIVED_ACK)); try++) {
             while ((response == TIMEOUT) && (timeout_ms < 4000)) {
                 send_error(sockfd, buffer, ifindex, ATTEMPT_LIMIT);
                 timeout_ms = timeout_ms << 1;
                 response = expect_response(sockfd, receive_buffer, buffer_size, timeout_ms);
             }
-            timeout_ms = 500;
 
             if (response == TIMEOUT) {
                 printf("Timeout ao entregar o erro na transmissao\n");
                 break;
             }
+
+            timeout_ms = 500;
         }
     } else {
         send_command(sockfd, buffer, ifindex, END);
         response = expect_response(sockfd, receive_buffer, buffer_size, timeout_ms);
-        for (short try = 1; ((try <= 3) && (response != RECEIVED_ACK)); try++) {
+        for (short try = 1; ((try <= tries) && (response != RECEIVED_ACK)); try++) {
             while ((response == TIMEOUT) && (timeout_ms < 4000)) {
                 send_command(sockfd, buffer, ifindex, END);
                 timeout_ms = timeout_ms << 1;
                 response = expect_response(sockfd, receive_buffer, buffer_size, timeout_ms);
             }
-            timeout_ms = 500;
 
             if (response == TIMEOUT) {
                 printf("Timeout ao entregar o end\n");
                 break;
             }
+
+            timeout_ms = 500;
         }
     }
 
