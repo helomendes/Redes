@@ -123,6 +123,12 @@ void expect_show( int sockfd, char *data, char *buffer, int data_size, int buffe
                     data[header.size] = '\0';
                     printf("%s\n", data);
                     send_command(sockfd, buffer, ifindex, ACK);
+                } else if (header.type == ERROR) {
+                    printf("Erro na recepcao da lista de videos\n");
+                    close(sockfd);
+                    exit(1);
+                } else {
+                    printf("Pacote de tipo inesperado recebido: %d\n", header.type);
                 }
             }
         }

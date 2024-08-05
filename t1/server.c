@@ -15,11 +15,11 @@
 
 void is_dir( char *dir );
 void preprocess_video_path( char *videos_dir );
-void send_video_list( int sockfd, char *buffer, char *videos_dir, int ifindex );
 void create_video_path( char *videos_dir, char *video_basename, char *video_path );
 
 int get_index( char *interface );
 int expect_filename( int sockfd, char *buffer, char *data, int buffer_size, int ifindex );
+int send_video_list( int sockfd, char *buffer, char *videos_dir, int buffer_size, int ifindex );
 int send_descriptor( int sockfd, char *video_path, char *buffer, int buffer_size, int ifindex );
 int send_video( int sockfd, char *video_path, char *data, char *buffer, int data_size, int buffer_size, int ifindex );
 
@@ -38,6 +38,7 @@ int main ( int argc, char **argv ) {
     strncpy(videos_dir, argv[2], PATH_MAX);
     is_dir(videos_dir);
     preprocess_video_path(videos_dir);
+    printf("Diretorio dos videos do servidor: %s\n", videos_dir);
 
     int sockfd = create_raw_socket(interface);
     struct packet_header_t header;
@@ -62,7 +63,10 @@ int main ( int argc, char **argv ) {
                     printf("Recebeu pedido de lista\n");
                     send_command(sockfd, buffer, ifindex, ACK);
                     printf("Enviando lista de videos\n");
-                    send_video_list(sockfd, buffer, videos_dir, ifindex);
+                    if (send_video_list(sockfd, buffer, videos_dir, BUFFER_SIZE, ifindex)) {
+                        printf("Erro ao enviar lista de nomes de arquivo, encerrando conexao\n");
+                        continue;
+                    }
 
                     if (expect_filename(sockfd, buffer, data, BUFFER_SIZE, ifindex)) {
                         fprintf(stderr, "Erro ao receber nome de arquivo\n");
@@ -129,7 +133,7 @@ int is_video(char* filename)
     return 0;
 }
 
-void send_video_list( int sockfd, char *buffer, char *videos_dir, int ifindex )
+int send_video_list( int sockfd, char *buffer, char *videos_dir, int buffer_size, int ifindex )
 {
     DIR *dp = opendir(videos_dir);
     struct dirent *ep;
@@ -139,11 +143,13 @@ void send_video_list( int sockfd, char *buffer, char *videos_dir, int ifindex )
         exit(1);
     }
 
-    int send_len;
-    int timeout_ms = 500;
     struct packet_header_t header = create_header();
     header.type = SHOW;
     header.sequence = 0;
+
+    int send_len, timeout_ms, response;
+    short tries = 3;
+    char receive_buffer[buffer_size];
     while ((ep = readdir(dp)) != NULL) {
         filename_size = is_video(ep->d_name);
         if ((filename_size) && (filename_size <= 63)) {
@@ -159,10 +165,31 @@ void send_video_list( int sockfd, char *buffer, char *videos_dir, int ifindex )
             strncpy(buffer + send_len, ep->d_name, filename_size);
             send_len += header.size;
             send_len += write_crc(buffer, send_len);
+
+            timeout_ms = 500;
+            printf("enviando video %s\n", ep->d_name);
             send_packet(sockfd, buffer, send_len, ifindex);
-            if (expect_response(sockfd, buffer, BUFFER_SIZE, timeout_ms)) {
-                fprintf(stderr, "Nao recebeu ack, interrompendo transmissao\n");
-                return;
+            response = expect_response(sockfd, receive_buffer, buffer_size, timeout_ms);
+            for (short try = 1; ((try <= tries) && (response != RECEIVED_ACK)); try++) {
+                while ((response == TIMEOUT) && (timeout_ms < 4000)) {
+                    timeout_ms = timeout_ms << 1;
+                    send_packet(sockfd, buffer, send_len, ifindex);
+                    response = expect_response(sockfd, receive_buffer, buffer_size, timeout_ms);
+                }
+
+                if (response == TIMEOUT) {
+                    printf("Timeout ao mandar lista de videos\n");
+                    send_error(sockfd, buffer, ifindex, PACKET_TIMEOUT);
+                    closedir(dp);
+                    return 1;
+                }
+
+                if (response != RECEIVED_ACK) {
+                    printf("Falha ao enviar titulo de video na tentativa %d de %d\n", try, tries);
+                    timeout_ms = 500;
+                    send_packet(sockfd, buffer, send_len, ifindex);
+                    response = expect_response(sockfd, receive_buffer, buffer_size, timeout_ms);
+                }
             }
         }
     }
@@ -171,6 +198,7 @@ void send_video_list( int sockfd, char *buffer, char *videos_dir, int ifindex )
     send_command(sockfd, buffer, ifindex, END);
 
     closedir(dp);
+    return 0;
 }
 
 int expect_filename( int sockfd, char *buffer, char *data, int buffer_size, int ifindex )
@@ -289,9 +317,9 @@ int send_video( int sockfd, char *video_path, char *data, char *buffer, int data
         send_len += write_crc(buffer, send_len);
 
         tries = 5;
+        timeout_ms = 500;
         send_packet(sockfd, buffer, send_len, ifindex);
         //printf("Pacote enviado, aguardando confirmacao de recebimento...\n");
-        timeout_ms = 500;
         response = expect_response(sockfd, receive_buffer, buffer_size, timeout_ms);
         for (short try = 1; ((try <= tries) && (response != RECEIVED_ACK)); try++) {
             while ((response == TIMEOUT) && (timeout_ms < 4000)) {
