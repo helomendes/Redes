@@ -19,6 +19,6 @@ class Cards:
    
     def show_hand(self, player):
         print()
-        for card in player.hand:
-            print(card, '   ', end='')
+        for i, card in enumerate(player.hand):
+            print(i+1, ':', card, '   ', end='')
         print('\n')

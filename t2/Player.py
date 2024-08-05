@@ -73,14 +73,49 @@ class Player:
                 game.dealt_card = data['data']
                 break
         
-    def take_a_guess(self, ROUND):
+    def take_a_guess(self, msg, game, ROUND):
         '''
         guess = int(input('My guess: '))
         '''
-        guess = random.randint(1, ROUND)
+        guess = random.randint(0, ROUND)
         print('My guess:', guess)
 
-        return guess
+        guess_msg = msg.create_message(msg.guess_type, False, self.org_addr, game.dealer, guess)
+        return guess_msg
 
-    def play(self):
-        print('*joga uma carta*')
+    def pick_a_card(self, msg, game):
+        '''
+        ind = int(input('Pick a card: '))
+        card = self.hand[ind-1]
+        '''
+        card = random.choice(self.hand)
+        print(card)
+        self.hand.remove(card)
+        card_msg = msg.create_message(msg.card_type, False, self.org_addr, game.dealer, card)
+
+        return card_msg
+
+    def play(self, ntw, msg, game):
+        card_msg = self.pick_a_card(msg, game)
+        
+        while len(game.cards) < 4:
+            msg.send_message(ntw, self, card_msg)
+            data = msg.receive_message(ntw)
+            msg.send_message(ntw, self, data)
+            if msg.is_for_me(self, data) and data['type'] == msg.card_type:
+                card = (data['origin'], data['data'])
+                if card not in game.cards:
+                    game.cards.append(card)
+            elif data and data['type'] == msg.warning_type:
+                break
+
+        if player.dealer:
+            end_msg = msg.create_message()
+            while True:
+                msg.send_message()
+                data = msg.receive_message()
+                if is_mine:
+                    break
+                msg.send_message()
+        
+
