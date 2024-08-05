@@ -223,9 +223,11 @@ void expect_download( int sockfd, char *video_path, char *data, char *buffer, in
                 }
 
                 if (header.type == ERROR) {
+                    send_command(sockfd, buffer, ifindex, ACK);
                     printf("Erro na transmissao, interrompendo download\n");
                     fclose(video);
-                    break;
+                    close(sockfd);
+                    exit(1);
                 }
 
                 if (header.type == DATA) {
@@ -234,6 +236,8 @@ void expect_download( int sockfd, char *video_path, char *data, char *buffer, in
                         last_sequence = header.sequence;
                     }
                     send_command(sockfd, buffer, ifindex, ACK);
+                } else {
+                    printf("Pacote de tipo inesperado recebido: %d\n", header.type);
                 }
             }
         }
