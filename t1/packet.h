@@ -27,9 +27,8 @@ typedef enum {
 
 #define COMMAND_SEQUENCE 1
 
-#define MAX_SIZE_VALUE (unsigned char) 63
-#define MAX_SEQUENCE_VALUE (unsigned char) 31
-#define MAX_TYPE_VALUE (unsigned char) 31
+#define MAX_SIZE_VALUE      0b111111
+#define MAX_SEQUENCE_VALUE  0b11111
 
 #define CRC_POLY 0b111010101
 

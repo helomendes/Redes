@@ -42,7 +42,6 @@ int main ( int argc, char **argv ) {
     int sockfd = create_raw_socket(interface);
 
     send_list(sockfd, buffer, BUFFER_SIZE, ifindex);
-    printf("Enviou pedido de lista e recebeu ack\n");
     expect_show(sockfd, data, buffer, DATA_SIZE, BUFFER_SIZE, ifindex);
     send_filename(sockfd, data, buffer, BUFFER_SIZE, ifindex);
     expect_descriptor(sockfd, buffer, BUFFER_SIZE, ifindex);
@@ -99,10 +98,10 @@ void send_list( int sockfd, char *buffer, int buffer_size, int ifindex ) {
 
 void expect_show( int sockfd, char *data, char *buffer, int data_size, int buffer_size, int ifindex)
 {
+    // TODO: adicionar timeout
     struct packet_header_t header;
     int received_len, read_len;
     while (1) {
-        //received_len = recvfrom(sockfd, buffer, buffer_size, 0, NULL, NULL);
         received_len = receive_packet(sockfd, buffer, buffer_size);
         if (received_len < 0) {
             perror("erro em recvfrom");
@@ -209,7 +208,7 @@ void expect_download( int sockfd, char *video_path, char *data, char *buffer, in
     struct packet_header_t header;
     int received_len, read_len;
     unsigned short last_sequence = 0;
-    uint32_t writen_bytes = 0;
+    uint32_t written_bytes = 0;
     while (1) {
         //received_len = recvfrom(sockfd, buffer, buffer_size, 0, NULL, NULL);
         received_len = receive_packet(sockfd, buffer, buffer_size);
@@ -241,13 +240,10 @@ void expect_download( int sockfd, char *video_path, char *data, char *buffer, in
                 }
 
                 if (header.type == DATA) {
-                    if ((header.sequence  > last_sequence) || ((header.sequence == 0) && (header.sequence - 1 == last_sequence))) {
+                    if ((header.sequence  > last_sequence) || ((header.sequence == 0) && (last_sequence == MAX_SEQUENCE_VALUE))) {
                         fwrite(buffer + read_len, header.size, 1, video);
-                        writen_bytes += header.size;
+                        written_bytes += header.size;
                         last_sequence = header.sequence;
-                    } else {
-                        printf("Last Sequence: %d\n", last_sequence);
-                        printf("header.sequence: %d\n", (unsigned short) header.sequence);
                     }
                     send_command(sockfd, buffer, ifindex, ACK);
                 } else {
@@ -256,5 +252,5 @@ void expect_download( int sockfd, char *video_path, char *data, char *buffer, in
             }
         }
     }
-    printf("Bytes escritos: %d\n", writen_bytes);
+    printf("Bytes escritos: %d\n", written_bytes);
 }
