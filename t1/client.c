@@ -19,6 +19,8 @@
 
 int get_index( char *interface );
 int read_message( char *message );
+
+void send_list( int sockfd, char *buffer, int buffer_size, int ifindex );
 void expect_show( int sockfd, char *data, char *buffer, int data_size, int buffer_size, int ifindex );
 void send_filename( int sockfd, char *data, char *buffer, int buffer_size, int ifindex );
 void expect_descriptor( int sockfd, char *buffer, int buffer_size, int ifindex );
@@ -38,14 +40,8 @@ int main ( int argc, char **argv ) {
     int ifindex = get_index(interface);
 
     int sockfd = create_raw_socket(interface);
-    int timeout_ms = 500;
 
-    send_command(sockfd, buffer, ifindex, LIST);
-    if (expect_response(sockfd, buffer, BUFFER_SIZE, timeout_ms)) {
-        printf("Recebeu erro\n");
-        exit(1);
-    }
-
+    send_list(sockfd, buffer, BUFFER_SIZE, ifindex);
     expect_show(sockfd, data, buffer, DATA_SIZE, BUFFER_SIZE, ifindex);
     send_filename(sockfd, data, buffer, BUFFER_SIZE, ifindex);
     expect_descriptor(sockfd, buffer, BUFFER_SIZE, ifindex);
@@ -76,6 +72,26 @@ int read_message( char *message )
     scanf("%[^\n]", message);
     getchar();
     return strlen(message);
+}
+
+void send_list( int sockfd, char *buffer, int buffer_size, int ifindex ) {
+    int timeout_ms, response;
+    short tries = 3;
+    for (short try = 1; try < tries; try++) {
+        timeout_ms = 500;
+        send_command(sockfd, buffer, ifindex, LIST);
+        response = expect_response(sockfd, buffer, BUFFER_SIZE, timeout_ms);
+        while((response == TIMEOUT) && (timeout_ms < 4000)) {
+            timeout_ms = timeout_ms << 1;
+            response = expect_response(sockfd, buffer, BUFFER_SIZE, timeout_ms);
+        }
+
+        if (response == TIMEOUT) {
+            printf("Timeout no pedido de lista para o servidor\n");
+            exit(1);
+        }
+    }
+
 }
 
 void expect_show( int sockfd, char *data, char *buffer, int data_size, int buffer_size, int ifindex)

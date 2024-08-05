@@ -81,6 +81,11 @@ void send_command( int sockfd, char *buffer, int ifindex, unsigned char command 
     addr.sll_protocol = htons(ETH_P_ALL);
     addr.sll_ifindex = ifindex;
 
+    for (int i = 0; i < send_len; i++) {
+        if (((unsigned char)buffer[i] == 0x88) || ((unsigned char)buffer[i] == 0x81))
+            printf("Byte problematico encontrado no pacote, pode causar erro\n");
+    }
+
     if (sendto(sockfd, buffer, send_len, 0, (struct sockaddr *) &addr, sizeof(struct sockaddr_ll)) < 0) {
         perror("sendto");
         exit(1);

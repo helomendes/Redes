@@ -59,7 +59,9 @@ int main ( int argc, char **argv ) {
             } else {
 
                 if (header.type == LIST) {
+                    printf("Recebeu pedido de lista\n");
                     send_command(sockfd, buffer, ifindex, ACK);
+                    printf("Enviando lista de videos\n");
                     send_video_list(sockfd, buffer, videos_dir, ifindex);
 
                     if (expect_filename(sockfd, buffer, data, BUFFER_SIZE, ifindex)) {
