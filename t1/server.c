@@ -305,6 +305,7 @@ int send_video( int sockfd, char *video_path, char *data, char *buffer, int data
     short tries;
     int send_len, response, timeout_ms;
     int read_bytes = fread(data, 1, data_size, video);
+    uint32_t transfered_bytes = 0;
     char receive_buffer[buffer_size];
     while (! feof(video)) {
         header.sequence++;
@@ -317,7 +318,7 @@ int send_video( int sockfd, char *video_path, char *data, char *buffer, int data
         tries = 5;
         timeout_ms = 500;
         send_packet(sockfd, buffer, send_len, ifindex);
-        printf("Pacote de sequencia %d enviado, aguardando confirmacao de recebimento...\n", header.sequence);
+        //printf("Pacote de sequencia %d enviado, aguardando confirmacao de recebimento...\n", header.sequence);
         response = expect_response(sockfd, receive_buffer, buffer_size, timeout_ms);
         for (short try = 1; ((try <= tries) && (response != RECEIVED_ACK)); try++) {
             while ((response == TIMEOUT) && (timeout_ms < 4000)) {
@@ -327,6 +328,7 @@ int send_video( int sockfd, char *video_path, char *data, char *buffer, int data
             }
 
             if (response == RECEIVED_ACK) {
+                transfered_bytes += read_bytes;
                 break;
             } else if (response == TIMEOUT) {
                 printf("Timeout limite atingido\n");
@@ -358,7 +360,7 @@ int send_video( int sockfd, char *video_path, char *data, char *buffer, int data
             break;
         }
 
-        printf("Pacote de sequencia %d recebido pelo client\n", header.sequence);
+        //printf("Pacote de sequencia %d recebido pelo client\n", header.sequence);
         read_bytes = fread(data, 1, data_size, video);
     }
     fclose(video);
@@ -383,6 +385,7 @@ int send_video( int sockfd, char *video_path, char *data, char *buffer, int data
             timeout_ms = 500;
         }
 
+        printf("Bytes transferidos: %u\n", transfered_bytes);
         return 1;
 
     } else {
@@ -404,5 +407,6 @@ int send_video( int sockfd, char *video_path, char *data, char *buffer, int data
         }
     }
 
-    return 1;
+    printf("Bytes transferidos: %u\n", transfered_bytes);
+    return 0;
 }
