@@ -33,7 +33,6 @@ class Game:
                 msg.send_message(ntw, player, data)
                 if data and data['type'] == msg.start_type:
                     player.hand = None
-                    player.guessed = None
                     break
         else:
             start_msg = msg.create_message(msg.start_type, True, player.org_addr, player.org_addr, 'new round started')
@@ -42,12 +41,10 @@ class Game:
                 data = msg.receive_message(ntw)
                 if msg.is_mine(player, data) and data['type'] == msg.start_type:
                     player.hand = None
-                    player.guessed = None
                     break
 
     def guess_round(self, ntw, msg, player, game, ROUND):
-        player.guessed = player.take_a_guess(ROUND)
-        guess_msg = msg.create_message(msg.guess_type, False, player.org_addr, self.dealer, player.guessed)
+        guess_msg = player.take_a_guess(msg, game, ROUND)
 
         if not player.dealer:
             while True:
@@ -119,8 +116,10 @@ class Game:
             self.guess_round(ntw, msg, player, self, ROUND)
 
             # cada um joga uma carta
-
-            player.play()
+    
+            for _ in range(len(player.hand)):
+                cards.show_hand(player)
+                player.play(ntw, msg, self)
             # calculo de pontos
             # termina as cartas
             # define ganhador
