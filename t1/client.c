@@ -42,6 +42,7 @@ int main ( int argc, char **argv ) {
     int sockfd = create_raw_socket(interface);
 
     send_list(sockfd, buffer, BUFFER_SIZE, ifindex);
+    printf("Enviou pedido de lista e recebeu ack\n");
     expect_show(sockfd, data, buffer, DATA_SIZE, BUFFER_SIZE, ifindex);
     send_filename(sockfd, data, buffer, BUFFER_SIZE, ifindex);
     expect_descriptor(sockfd, buffer, BUFFER_SIZE, ifindex);
@@ -85,6 +86,8 @@ void send_list( int sockfd, char *buffer, int buffer_size, int ifindex ) {
             timeout_ms = timeout_ms << 1;
             response = expect_response(sockfd, buffer, BUFFER_SIZE, timeout_ms);
         }
+
+        if (response == RECEIVED_ACK) return;
 
         if (response == TIMEOUT) {
             printf("Timeout no pedido de lista para o servidor\n");
