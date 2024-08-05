@@ -1,21 +1,17 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <net/if.h>
-#include <sys/socket.h>
 #include <unistd.h>
 #include <string.h>
-#include <sys/stat.h>
 #include <dirent.h>
+#include <sys/stat.h>
 
 #include "packet.h"
 #include "socket.h"
+#include "video.h"
 
 #define BUFFER_SIZE     128
 #define DATA_SIZE       63
-
-void is_dir( char *dir );
-void preprocess_video_path( char *videos_dir );
-void create_video_path( char *videos_dir, char *video_basename, char *video_path );
 
 int get_index( char *interface );
 int expect_filename( int sockfd, char *buffer, char *data, int buffer_size, int ifindex );
@@ -30,7 +26,7 @@ int main ( int argc, char **argv ) {
         exit(1);
     }
 
-    int received_len, read_len;//, send_len;
+    int received_len, read_len;
     char interface[8], videos_dir[PATH_MAX], video_path[PATH_MAX];
 
     strncpy(interface, argv[1], 8);
@@ -38,7 +34,7 @@ int main ( int argc, char **argv ) {
     strncpy(videos_dir, argv[2], PATH_MAX);
     is_dir(videos_dir);
     preprocess_video_path(videos_dir);
-    printf("diretorio dos videos: %s\n", videos_dir);
+    printf("Diretorio dos videos: %s\n", videos_dir);
 
     int sockfd = create_raw_socket(interface);
     struct packet_header_t header;
@@ -60,6 +56,7 @@ int main ( int argc, char **argv ) {
             } else {
 
                 if (header.type == LIST) {
+                    printf("Conexao estabelecida...");
                     send_command(sockfd, buffer, ifindex, ACK);
                     printf("Enviando lista de videos...\n");
                     if (send_video_list(sockfd, buffer, videos_dir, BUFFER_SIZE, ifindex)) {
@@ -75,9 +72,7 @@ int main ( int argc, char **argv ) {
                     printf("Nome de arquivo recebido: %s\n", data);
                     send_command(sockfd, buffer, ifindex, ACK);
 
-                    //printf("Diretorio dos videos: '%s'\n", videos_dir);
                     create_video_path(videos_dir, data, video_path);
-                    //printf("Caminho do video: '%s'\n", video_path);
                     if (send_descriptor(sockfd, video_path, buffer, BUFFER_SIZE, ifindex)) {
                         fprintf(stderr, "Erro ao enviar descritor de arquivo\n");
                         continue;
@@ -87,9 +82,8 @@ int main ( int argc, char **argv ) {
                         printf("Erro ao enviar video, interrompendo transferencia\n");
                         continue;
                     }
-                    printf("Video enviado com sucesso\n");
+                    printf("Video enviado com sucesso, encerrando conexao...\n");
                 }
-                // else mandar um nack?
             }
         }
     }
@@ -107,31 +101,6 @@ int get_index( char *interface )
     }
 
     return index;
-}
-
-void is_dir( char *dir )
-{
-    struct stat dir_stats;
-    stat(dir, &dir_stats);
-    if (!S_ISDIR(dir_stats.st_mode)) {
-        fprintf(stderr, "Erro, caminho fornecido nao eh um diretorio\n");
-        exit(1);
-    }
-
-}
-
-int is_video(char* filename)
-{
-    int size = 0;
-
-    while(filename[size] != '\0') size++;
-
-    if (size < 5) return 0;
-
-    if ((! strncmp(filename + size - 4, ".avi", 4)) || (! strncmp(filename + size - 4, ".mp4", 4))) {
-        return size;
-    }
-    return 0;
 }
 
 int send_video_list( int sockfd, char *buffer, char *videos_dir, int buffer_size, int ifindex )
@@ -231,34 +200,6 @@ int expect_filename( int sockfd, char *buffer, char *data, int buffer_size, int 
     }
 
     return 0;
-}
-
-void preprocess_video_path( char *videos_dir )
-{
-    int null_char = 0;
-    while (videos_dir[null_char] != '\0') null_char++;
-    if (null_char == 0) {
-        printf("Erro ao processar caminho para os videos: '%s'\n", videos_dir);
-        exit(1);
-    }
-    if (videos_dir[null_char-1] != '/') {
-        videos_dir[null_char] = '/';
-        videos_dir[null_char+1] = '\0';
-    }
-}
-
-void create_video_path( char *videos_dir, char *video_basename, char *video_path )
-{
-    int null_char = 0;
-    while (videos_dir[null_char] != '\0') null_char++;
-    if (null_char == 0) {
-        printf("Erro ao criar caminho para o video escolhido\n");
-        printf("Diretorio dos videos: %s\n", videos_dir);
-        printf("Video escolhidos: %s\n", video_basename);
-        exit(1);
-    }
-    strncpy(video_path, videos_dir, null_char);
-    strcpy(video_path + null_char, video_basename);
 }
 
 int send_descriptor( int sockfd, char *video_path, char *buffer, int buffer_size, int ifindex )

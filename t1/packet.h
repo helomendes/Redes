@@ -43,14 +43,14 @@ struct packet_header_t create_header();
 
 int is_packet( char *buffer, int received_len );
 
-void print_header( struct packet_header_t header );
-
-unsigned int write_header( struct packet_header_t header, char* buffer );
-
 int read_header( struct packet_header_t *header, char* buffer );
 
-unsigned int write_crc( char *buffer, int bytes );
-
 int valid_crc( char *buffer, int bytes );
+
+int write_crc( char *buffer, int bytes );
+
+int write_header( struct packet_header_t header, char* buffer );
+
+void print_header( struct packet_header_t header );
 
 #endif

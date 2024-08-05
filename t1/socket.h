@@ -12,14 +12,14 @@ typedef enum {
 
 int create_raw_socket( char *interface );
 
-int receive_packet( int sockfd, char *buffer, int buffer_size );
+int expect_response( int sockfd, char *buffer, int buffer_size, int timeout_ms );
 
-void send_packet( int sockfd, char *buffer, int bytes, int ifindex );
+int receive_packet( int sockfd, char *buffer, int buffer_size );
 
 void send_command( int sockfd, char *buffer, int ifindex, unsigned char command );
 
 void send_error( int sockfd, char *buffer, int ifindex, unsigned char error );
 
-int expect_response( int sockfd, char *buffer, int buffer_size, int timeout_ms );
+void send_packet( int sockfd, char *buffer, int bytes, int ifindex );
 
 #endif

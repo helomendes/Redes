@@ -11,8 +11,37 @@
 #include "socket.h"
 #include "packet.h"
 
-void catch_loopback( int sockfd, char *buffer, int buffer_size );
+// Auxilary Functions
+long long timestamp() {
+    struct timeval t;
+    gettimeofday(&t, NULL);
+    return ((t.tv_sec*1000) + (t.tv_usec/1000));
+}
 
+int add_vlan_bytes(char *send_buffer, char *buffer, int bytes)
+{
+    int shift = 0;
+    for (int i = 0; i < bytes; i++) {
+        send_buffer[i + shift] = buffer[i];
+        if (((unsigned char)buffer[i] == 0x88) || ((unsigned char)buffer[i] == 0x81)) {
+            shift++;
+            send_buffer[i + shift] = (unsigned char)0xff;
+        }
+    }
+    return shift;
+}
+
+int remove_vlan_bytes( char *buffer, char *receive_buffer, int buffer_size, int bytes )
+{
+    int shift = 0;
+    for (int i = 0; (((i + shift) < bytes) && (i < buffer_size)); i++) {
+        buffer[i] = receive_buffer[i + shift];
+        if ((((unsigned char)receive_buffer[i + shift] == 0x88) || ((unsigned char)receive_buffer[i + shift] == 0x81)) && ((unsigned char)receive_buffer[i+shift+1] == 0xff)) shift++;
+    }
+    return shift;
+}
+
+// Lib Functions
 int create_raw_socket( char* interface )
 {
     int sockfd = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
@@ -45,17 +74,41 @@ int create_raw_socket( char* interface )
     return sockfd;
 }
 
-int add_vlan_bytes(char *send_buffer, char *buffer, int bytes)
+int expect_response( int sockfd, char *buffer, int buffer_size, int timeout_ms )
 {
-    int shift = 0;
-    for (int i = 0; i < bytes; i++) {
-        send_buffer[i + shift] = buffer[i];
-        if (((unsigned char)buffer[i] == 0x88) || ((unsigned char)buffer[i] == 0x81)) {
-            shift++;
-            send_buffer[i + shift] = (unsigned char)0xff;
+    int received_len, read_len;
+    struct packet_header_t header;
+    long long start = timestamp();
+    do {
+        received_len = receive_packet(sockfd, buffer, buffer_size);
+        if (received_len < 0) {
+            perror("erro em recvfrom");
+            close(sockfd);
+            exit(1);
         }
-    }
-    return shift;
+
+        if (is_packet(buffer, received_len)) {
+            read_len = read_header(&header, buffer);
+            if (! valid_crc(buffer, read_len + header.size)) {
+                return INVALID_CRC;
+            } else {
+                if (header.type == ACK) return RECEIVED_ACK;
+                else if (header.type == NACK) return RECEIVED_NACK;
+                else if (header.type == ERROR) return RECEIVED_ERROR;
+                else return UNEXPECTED_TYPE;
+            }
+        }
+    } while ((timestamp() - start) < timeout_ms);
+
+    return TIMEOUT;
+}
+
+int receive_packet( int sockfd, char *buffer, int buffer_size )
+{
+    char receive_buffer[buffer_size * 2];
+    int received_len = recvfrom(sockfd, receive_buffer, buffer_size * 2, 0, NULL, NULL);
+    received_len -= remove_vlan_bytes(buffer, receive_buffer, buffer_size, received_len);
+    return received_len;
 }
 
 void send_packet(int sockfd, char* buffer, int bytes, int ifindex)
@@ -108,6 +161,7 @@ void send_error( int sockfd, char *buffer, int ifindex, unsigned char error )
     struct packet_header_t header = create_header();
     header.size = 10;
     header.type = ERROR;
+
     int send_len = write_header(header, buffer);
     memcpy(buffer + send_len, &error, sizeof(unsigned char));
     memcpy(buffer + send_len + sizeof(unsigned char), "\0\0\0\0\0\0\0\0\0\0", header.size - sizeof(unsigned char));
@@ -126,61 +180,4 @@ void send_error( int sockfd, char *buffer, int ifindex, unsigned char error )
         perror("sendto");
         exit(1);
     }
-}
-
-long long timestamp() {
-    struct timeval t;
-    gettimeofday(&t, NULL);
-    return ((t.tv_sec*1000) + (t.tv_usec/1000));
-}
-
-int remove_vlan_bytes( char *buffer, char *receive_buffer, int buffer_size, int bytes )
-{
-    int shift = 0;
-    for (int i = 0; (((i + shift) < bytes) && (i < buffer_size)); i++) {
-        buffer[i] = receive_buffer[i + shift];
-        if ((((unsigned char)receive_buffer[i + shift] == 0x88) || ((unsigned char)receive_buffer[i + shift] == 0x81)) && ((unsigned char)receive_buffer[i+shift+1] == 0xff)) shift++;
-    }
-    return shift;
-}
-
-int receive_packet( int sockfd, char *buffer, int buffer_size )
-{
-    char receive_buffer[buffer_size * 2];
-    int received_len = recvfrom(sockfd, receive_buffer, buffer_size * 2, 0, NULL, NULL);
-    received_len -= remove_vlan_bytes(buffer, receive_buffer, buffer_size, received_len);
-    return received_len;
-}
-
-int expect_response( int sockfd, char *buffer, int buffer_size, int timeout_ms )
-{
-    int received_len, read_len;
-    struct packet_header_t header;
-    long long start = timestamp();
-    do {
-        //received_len = recvfrom(sockfd, receive_buffer, buffer_size, 0, NULL, NULL);
-        received_len = receive_packet(sockfd, buffer, buffer_size);
-        if (received_len < 0) {
-            perror("erro em recvfrom");
-            close(sockfd);
-            exit(1);
-        }
-
-        if (is_packet(buffer, received_len)) {
-            read_len = read_header(&header, buffer);
-            if (! valid_crc(buffer, read_len + header.size)) {
-                return INVALID_CRC;
-            } else {
-                if (header.type == ACK) return RECEIVED_ACK;
-                else if (header.type == NACK) return RECEIVED_NACK;
-                else if (header.type == ERROR) return RECEIVED_ERROR;
-                else {
-                    printf("Resposta de tipo inesperado recebida: %d\n", (int) header.type);
-                    return UNEXPECTED_TYPE;
-                }
-            }
-        }
-    } while ((timestamp() - start) < timeout_ms);
-
-    return TIMEOUT;
 }
