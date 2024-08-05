@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/time.h>
+#include <string.h>
 
 #include "socket.h"
 #include "packet.h"
@@ -51,10 +52,10 @@ void send_packet(int sockfd, char* buffer, int bytes, int ifindex)
     addr.sll_protocol = htons(ETH_P_ALL);
     addr.sll_ifindex = ifindex;
 
-    for (int i = 0; i < bytes; i++) {
-        if (((unsigned char)buffer[i] == 0x88) || ((unsigned char)buffer[i] == 0x81))
-            printf("Byte problematico encontrado no pacote, pode causar erro\n");
-    }
+    //for (int i = 0; i < bytes; i++) {
+    //    if (((unsigned char)buffer[i] == 0x88) || ((unsigned char)buffer[i] == 0x81))
+    //        printf("Byte problematico encontrado no pacote, pode causar erro\n");
+    //}
 
     if (sendto(sockfd, buffer, bytes, 0, (struct sockaddr *) &addr, sizeof(struct sockaddr_ll)) < 0) {
         perror("sendto");
@@ -73,6 +74,7 @@ void send_command( int sockfd, char *buffer, int ifindex, unsigned char command 
     header.size = 10;
     header.type = command;
     int send_len = write_header(header, buffer);
+    memcpy(buffer + send_len, "\0\0\0\0\0\0\0\0\0\0", header.size);
     send_len += header.size;
     send_len += write_crc(buffer, send_len);
 
@@ -81,10 +83,37 @@ void send_command( int sockfd, char *buffer, int ifindex, unsigned char command 
     addr.sll_protocol = htons(ETH_P_ALL);
     addr.sll_ifindex = ifindex;
 
-    for (int i = 0; i < send_len; i++) {
-        if (((unsigned char)buffer[i] == 0x88) || ((unsigned char)buffer[i] == 0x81))
-            printf("Byte problematico encontrado no pacote, pode causar erro\n");
+    //for (int i = 0; i < send_len; i++) {
+    //    if (((unsigned char)buffer[i] == 0x88) || ((unsigned char)buffer[i] == 0x81))
+    //        printf("Byte problematico encontrado no pacote, pode causar erro\n");
+    //}
+
+    if (sendto(sockfd, buffer, send_len, 0, (struct sockaddr *) &addr, sizeof(struct sockaddr_ll)) < 0) {
+        perror("sendto");
+        exit(1);
     }
+}
+
+void send_error( int sockfd, char *buffer, int ifindex, unsigned char error )
+{
+    struct packet_header_t header = create_header();
+    header.size = 10;
+    header.type = ERROR;
+    int send_len = write_header(header, buffer);
+    memcpy(buffer + send_len, &error, sizeof(unsigned char));
+    memcpy(buffer + send_len + sizeof(unsigned char), "\0\0\0\0\0\0\0\0\0\0", header.size - sizeof(unsigned char));
+    send_len += header.size;
+    send_len += write_crc(buffer, send_len);
+
+    struct sockaddr_ll addr = {0};
+    addr.sll_family = AF_PACKET;
+    addr.sll_protocol = htons(ETH_P_ALL);
+    addr.sll_ifindex = ifindex;
+
+    //for (int i = 0; i < send_len; i++) {
+    //    if (((unsigned char)buffer[i] == 0x88) || ((unsigned char)buffer[i] == 0x81))
+    //        printf("Byte problematico encontrado no pacote, pode causar erro\n");
+    //}
 
     if (sendto(sockfd, buffer, send_len, 0, (struct sockaddr *) &addr, sizeof(struct sockaddr_ll)) < 0) {
         perror("sendto");

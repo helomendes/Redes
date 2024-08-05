@@ -212,7 +212,7 @@ void expect_download( int sockfd, char *video_path, char *data, char *buffer, in
         if (is_packet(buffer, received_len)) {
             read_len = read_header(&header, buffer);
             if (! valid_crc(buffer, read_len + header.size)) {
-                printf("Erro detectado pelo crc\n");
+                printf("Erro detectado pelo crc na recepcao de um pacote, mandando NACK\n");
                 send_command(sockfd, buffer, ifindex, NACK);
             } else {
                 if (header.type == END) {

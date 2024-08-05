@@ -17,7 +17,8 @@
 typedef enum {
     ACCESS_DENIED = 1,
     NOT_FOUND,
-    DISK_FULL
+    DISK_FULL,
+    ATTEMPT_LIMIT
 } ERRORS;
 
 #define SIZEOF_INITMARKER 1

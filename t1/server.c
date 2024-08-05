@@ -329,29 +329,48 @@ int send_video( int sockfd, char *video_path, char *data, char *buffer, int data
             }
         }
 
+        if (response == RECEIVED_NACK) {
+            printf("Limite de NACKs recebido pelo servidor, encerrando transmissao\n");
+            break;
+        }
+
         read_bytes = fread(data, 1, data_size, video);
     }
 
     tries = 3;
     timeout_ms = 500;
-    send_command(sockfd, buffer, ifindex, END);
-    response = expect_response(sockfd, receive_buffer, buffer_size, timeout_ms);
-    for (short try = 1; ((try <= 3) && (response != RECEIVED_ACK)); try++) {
-        while ((response == TIMEOUT) && (timeout_ms < 4000)) {
-            send_command(sockfd, buffer, ifindex, END);
-            timeout_ms = timeout_ms << 1;
-            response = expect_response(sockfd, receive_buffer, buffer_size, timeout_ms);
-        }
+    if (response == RECEIVED_NACK) {
+        send_error(sockfd, buffer, ifindex, ATTEMPT_LIMIT);
+        response = expect_response(sockfd, receive_buffer, buffer_size, timeout_ms);
+        for (short try = 1; ((try <= 3) && (response != RECEIVED_ACK)); try++) {
+            while ((response == TIMEOUT) && (timeout_ms < 4000)) {
+                send_error(sockfd, buffer, ifindex, ATTEMPT_LIMIT);
+                timeout_ms = timeout_ms << 1;
+                response = expect_response(sockfd, receive_buffer, buffer_size, timeout_ms);
+            }
+            timeout_ms = 500;
 
-        if (response == TIMEOUT) {
-            printf("Timeout ao entregar o end\n");
-            break;
+            if (response == TIMEOUT) {
+                printf("Timeout ao entregar o erro na transmissao\n");
+                break;
+            }
         }
-    }
+    } else {
+        send_command(sockfd, buffer, ifindex, END);
+        response = expect_response(sockfd, receive_buffer, buffer_size, timeout_ms);
+        for (short try = 1; ((try <= 3) && (response != RECEIVED_ACK)); try++) {
+            while ((response == TIMEOUT) && (timeout_ms < 4000)) {
+                send_command(sockfd, buffer, ifindex, END);
+                timeout_ms = timeout_ms << 1;
+                response = expect_response(sockfd, receive_buffer, buffer_size, timeout_ms);
+            }
+            timeout_ms = 500;
 
-    if (response != RECEIVED_ACK) {
-        printf("Falhou em entregar o END\n");
-        return 1;
+            if (response == TIMEOUT) {
+                printf("Timeout ao entregar o end\n");
+                break;
+            }
+        }
     }
 
     fclose(video);
