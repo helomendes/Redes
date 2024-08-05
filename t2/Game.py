@@ -26,6 +26,7 @@ class Game:
         game.dealt_card = None
         game.dealer = None
         game.guesses = None
+        game.cards = None
 
         if not player.dealer:
             while True:
@@ -45,7 +46,29 @@ class Game:
 
     def guess_round(self, ntw, msg, player, game, ROUND):
         guess_msg = player.take_a_guess(msg, game, ROUND)
+        '''
+        guesses = []
+        while len(guesses) < 4:
+            msg.send_message(ntw, player, guess_msg)
+            data = msg.receive_message(ntw)
+            msg.send_message(ntw, player, data)
+            if msg.is_for_me(player, data) and data['type'] == msg.guess_type:
+                guess = (data['origin'], data['data'])
+                if guess not in guesses:
+                    guesses.append(guess)
+            elif data and data['type'] == msg.warning_type:
+                break
+        if player.dealer:
+            end_msg = msg.create_message(msg.warning_type, True, player.org_addr, player.org_addr, 'end of guesses')
+            while True:
+                msg.send_message(ntw, player, end_msg)
+                data = msg.receive_message(ntw)
+                if msg.is_mine(player, data):
+                    break
+                msg.send_message(ntw, player, data)
 
+        
+        '''
         if not player.dealer:
             while True:
                 msg.send_message(ntw, player, guess_msg)
@@ -77,6 +100,7 @@ class Game:
             for guess in guesses:
                 print('Player', ntw.players[guess[0]], ':', guess[1])
             print()
+        
 
     def end_of_round(self, ntw, player, msg):
         if not player.dealer:

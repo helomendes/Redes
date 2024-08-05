@@ -98,6 +98,7 @@ class Player:
     def play(self, ntw, msg, game):
         card_msg = self.pick_a_card(msg, game)
         
+        game.cards = []
         while len(game.cards) < 4:
             msg.send_message(ntw, self, card_msg)
             data = msg.receive_message(ntw)
@@ -109,13 +110,13 @@ class Player:
             elif data and data['type'] == msg.warning_type:
                 break
 
-        if player.dealer:
-            end_msg = msg.create_message()
+        if self.dealer:
+            end_msg = msg.create_message(msg.warning_type, True, self.org_addr, game.dealer, 'end_of_round')
             while True:
-                msg.send_message()
-                data = msg.receive_message()
-                if is_mine:
+                msg.send_message(ntw, self, end_msg)
+                data = msg.receive_message(ntw)
+                if msg.is_mine(self, data):
                     break
-                msg.send_message()
+                msg.send_message(ntw, self, data)
         
 
