@@ -56,7 +56,7 @@ int main ( int argc, char **argv ) {
             } else {
 
                 if (header.type == LIST) {
-                    printf("Conexao estabelecida...");
+                    printf("Conexao estabelecida...\n");
                     send_command(sockfd, buffer, ifindex, ACK);
                     printf("Enviando lista de videos...\n");
                     if (send_video_list(sockfd, buffer, videos_dir, BUFFER_SIZE, ifindex)) {

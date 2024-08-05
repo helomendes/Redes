@@ -41,15 +41,20 @@ int main ( int argc, char **argv ) {
     strncpy(videos_dir, argv[2], PATH_MAX);
     is_dir(videos_dir);
     preprocess_video_path(videos_dir);
-    printf("Diretorio onde os videos seram salvos: %s\n", videos_dir);
+    printf("Diretorio onde os videos serao salvos: %s\n", videos_dir);
 
     int sockfd = create_raw_socket(interface);
 
     send_list(sockfd, buffer, BUFFER_SIZE, ifindex);
+
+    printf("Lista dos videos disponiveis:\n");
     expect_show(sockfd, data, buffer, DATA_SIZE, BUFFER_SIZE, ifindex);
+    
     send_filename(sockfd, data, buffer, BUFFER_SIZE, ifindex);
     create_video_path(videos_dir, data, video_path);
     expect_descriptor(sockfd, buffer, BUFFER_SIZE, ifindex);
+
+    printf("Baixando video...\n");
     expect_download(sockfd, video_path, data, buffer, DATA_SIZE, BUFFER_SIZE, ifindex);
 
     close(sockfd);
