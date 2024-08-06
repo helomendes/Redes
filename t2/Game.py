@@ -4,7 +4,12 @@ from Cards import Cards
 
 class Game:
     def __init__(self):
+        self.ROUND = 4
         self.dealt_card = None
+        self.dealer = None
+        self.plays = None
+        self.cards = None
+        self.guesses = None
 
     def token_tryout(self, ntw, player, msg):
         ntw.create_token(msg, player)
@@ -22,11 +27,12 @@ class Game:
                 ntw.token['destination'] = player.dest_addr
                 ntw.pass_token(msg, player)
 
-    def new_round(self, ntw, player, msg, game):
-        game.dealt_card = None
-        game.dealer = None
-        game.plays = None
-        game.cards = None
+    def new_round(self, ntw, player, msg):
+        self.dealt_card = None
+        self.dealer = None
+        self.plays = None
+        self.cards = None
+        self.guesses = None
 
         if not player.dealer:
             while True:
@@ -44,9 +50,9 @@ class Game:
                     player.hand = None
                     break
 
-    def guess_round(self, ntw, msg, player, game, ROUND):
-        guess_msg = player.take_a_guess(msg, game, ROUND)
-        end_msg = msg.create_message(msg.end_type, True, player.org_addr, game.dealer, 'end of guess round')
+    def guess_round(self, ntw, msg, player, ROUND):
+        guess_msg = player.take_a_guess(msg, self, ROUND)
+        end_msg = msg.create_message(msg.end_type, True, player.org_addr, self.dealer, 'end of guess round')
 
         if not player.dealer:
             received = False
@@ -89,8 +95,8 @@ class Game:
                     received = True
             
             guesses = sorted(guesses, key=lambda guess: guess[0][1])
-            game.guesses = guesses
-            for guess in guesses:
+            self.guesses = guesses
+            for guess in self.guesses:
                 print('Player', ntw.players[guess[0]], ':', guess[1])
             print()
 
@@ -110,37 +116,41 @@ class Game:
                     break
 
     def calc_points(self, player):
+        if player.dealer:
+            print('***************************************')
+            print('Dealt card:', self.dealt_card)
+            print('Plays:')
+            print(self.plays)
+
+
+
         return
 
     def start(self, ntw, player, msg):
         ntw.create_token(msg, player)
         cards = Cards()
 
-        for ROUND in range(4, 0, -1):
+        player.i_am_dealer(ntw, msg, self)
 
-            self.new_round(ntw, player, msg, self)
+        if not player.dealer:
+            player.receive_cards(ntw, msg, self)
+        else:
+            player.deal_cards(ntw, msg, cards, self)
+        print('Dealt card:', self.dealt_card)
+        cards.show_hand(player)
+
+        for ROUND in range(self.ROUND, 0, -1):
 
             print('----------------------------------------')
-            print('\nROUND', 4-ROUND+1, end='')
+            print('\nROUND', self.ROUND-ROUND+1, end='')
 
             player.i_am_dealer(ntw, msg, self)
+            self.guess_round(ntw, msg, player, ROUND)
 
-            if not player.dealer:
-                player.receive_cards(ntw, msg, self)
-            else:
-                player.deal_cards(ntw, msg, cards, self, ROUND)
-            print('Dealt card:', self.dealt_card)
             cards.show_hand(player)
+            player.play(ntw, msg, self)
+            #self.calc_points(player)
 
-            self.guess_round(ntw, msg, player, self, ROUND)
-
-            # cada um joga uma carta
-    
-            
-            for _ in range(len(player.hand)):
-                print('\nNOVA RODADA DE CARTAS\n')
-                cards.show_hand(player)
-                player.play(ntw, msg, self)
             '''     
                 if player.dealer:
                     while True:

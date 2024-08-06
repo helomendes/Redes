@@ -38,9 +38,9 @@ class Player:
 
         print('   -   Dealer: Player', ntw.players[game.dealer], '\n')
 
-    def deal_cards(self, ntw, msg, cards, game, ROUND):
+    def deal_cards(self, ntw, msg, cards, game):
         for PLAYER in range(4):
-            hand = cards.get_hand(ROUND)
+            hand = cards.get_hand(game.ROUND)
             if self.id-1 == PLAYER:
                 self.hand = hand
             else:
@@ -141,7 +141,7 @@ class Player:
 
             plays = sorted(plays, key=lambda play: play[0][1])
             game.plays = plays
-            for play in plays:
+            for play in game.plays:
                 print('Player', ntw.players[play[0]], ':', play[1])
             print()
 
