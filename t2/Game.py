@@ -153,6 +153,16 @@ class Game:
 
             print('Winner: ', self.winner)
 
+    def declare_winner(self, ntw, player):
+        if player.dealer:
+            winner = (0, 0)
+            for life in self.lives:
+                if life[1] > winner[1]:
+                    winner = life
+
+            print('WINNER: Player', ntw.players[winner[0]])
+
+
     def start(self, ntw, player, msg):
         ntw.create_token(msg, player)
         cards = Cards()
@@ -201,3 +211,6 @@ class Game:
             dif = dif * -1
         player.life -= dif
         print('LIFE:', player.life)
+        print()
+        player.show_life(ntw, msg, self)
+        self.declare_winner(ntw, player)

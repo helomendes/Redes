@@ -144,3 +144,52 @@ class Player:
                 print('Player', ntw.players[play[0]], ':', play[1])
             print()
 
+    def show_life(self, ntw, msg, game):
+        life_msg = msg.create_message(msg.life_type, False, self.org_addr, game.dealer, self.life)
+        end_msg = msg.create_message(msg.end_type, True, self.org_addr, game.dealer, 'end of life round')
+
+        if not self.dealer:
+            received = False
+            while not received:
+                data = msg.receive_message(ntw)
+                if data and data['type'] == msg.life_type:
+                    received = True
+            received = False
+            while not received:
+                if data and data['type'] == msg.life_type:
+                    msg.send_message(ntw, self, data)
+                msg.send_message(ntw, self, life_msg)
+                data = msg.receive_message(ntw)
+                if msg.is_mine(self, data) and data['data'] == life_msg['data']:
+                    received = True
+            received = False
+            while not received:
+                data = msg.receive_message(ntw)
+                if data and data['data'] == end_msg['data']:
+                    received = True
+                msg.send_message(ntw, self, data)
+
+        else:
+            lives = []
+            while len(lives) < 4:
+                msg.send_message(ntw, self, life_msg)
+                data = msg.receive_message(ntw)
+                if msg.is_for_me(self, data) and data['type'] == msg.life_type:
+                    life = (data['origin'], data['data'])
+                    if life not in lives:
+                        lives.append(life)
+                msg.send_message(ntw, self, data)
+
+            received = False
+            while not received:
+                msg.send_message(ntw, self, end_msg)
+                data = msg.receive_message(ntw)
+                if data and data['data'] == end_msg['data']:
+                    received = True
+
+            lives = sorted(lives, key=lambda life: life[0][1])
+            game.lives = lives
+            for life in game.lives:
+                print('Player', ntw.players[life[0]], ':', life[1])
+            print()
+

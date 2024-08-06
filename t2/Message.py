@@ -12,6 +12,7 @@ class Message:
         self.warning_type = 'warning_type'
         self.dealer_type = 'dealer_type'
         self.play_type = 'play_type'
+        self.life_type = 'life_type'
 
     def create_message(self, typ, broadcast, org, dest, data):
         msg = {
@@ -56,13 +57,3 @@ class Message:
             if data['origin'] == player.org_addr:
                 return True
         return False
-
-    '''
-    def send_until_receive(self, ntw, player, data):
-        while True:
-            self.send_message(ntw, player, data)
-            rec = self.receive_message(ntw)
-            if self.is_mine(player, rec) and data['data'] == rec['data']:
-                    break
-            self.send_message(ntw, player, rec)
-    '''
