@@ -24,35 +24,37 @@ class Cards:
         print('\n')
 
     def points(self, card):
-        if card[0] == '♣️':
+        naipe = 0
+        num = 0
+
+        if card[0] == '♣️' or card[0] == '♣':
             naipe = 4
-        elif card[0] == '♥️':
+        elif card[0] == '♥️' or card[0] == '♥':
             naipe = 3
-        elif card[0] == '♠️':
+        elif card[0] == '♠️' or card[0] == '♠':
             naipe = 2
-        elif card[0] == '♦️':
+        elif card[0] == '♦️' or card[0] == '♦':
             naipe = 1
 
-
-        if card[1] == '3':
+        if card[4] == '3':
             num = 10
-        elif card[1] == '2':
+        elif card[4] == '2':
             num = 9
-        elif card[1] == 'A':
+        elif card[4] == 'A':
             num = 8
-        elif card[1] == 'K':
+        elif card[4] == 'K':
             num = 7
-        elif card[1] == 'J':
+        elif card[4] == 'J':
             num = 6
-        elif card[1] == 'Q':
+        elif card[4] == 'Q':
             num = 5
-        elif card[1] == '7':
+        elif card[4] == '7':
             num = 4
-        elif card[1] == '6':
+        elif card[4] == '6':
             num = 3
-        elif card[1] == '5':
+        elif card[4] == '5':
             num = 2
-        elif card[1] == '4':
+        elif card[4] == '4':
             num = 1
 
         return (naipe, num)

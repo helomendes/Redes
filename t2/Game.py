@@ -33,6 +33,7 @@ class Game:
         self.plays = None
         self.cards = None
         self.guesses = None
+        self.winner = None
 
         if not player.dealer:
             while True:
@@ -52,6 +53,7 @@ class Game:
 
     def guess_round(self, ntw, msg, player, ROUND):
         guess_msg = player.take_a_guess(msg, self, ROUND)
+        player.guessed = guess_msg['data']
         end_msg = msg.create_message(msg.end_type, True, player.org_addr, self.dealer, 'end of guess round')
 
         if not player.dealer:
@@ -117,13 +119,12 @@ class Game:
 
     def calc_points(self, player, cards):
         if player.dealer:
-            print('***************************************')
-            print('Dealt card:', self.dealt_card)
-            print('Plays:')
             print(self.plays)
 
             dealt = cards.points(self.dealt_card)
             manilha = cards.manilha(dealt)
+            print(dealt)
+            print(manilha)
             winner = (0, 0)
             for play in self.plays:
                 point = cards.points(play[1])
@@ -132,7 +133,8 @@ class Game:
                         if point[0] > winner[0]:
                             winner = point
                         elif point[0] == winner[0]:
-                            print('empate')
+                            self.winner = self.dealer
+                            continue
                     else:
                         winner = point
                 else:
@@ -142,10 +144,12 @@ class Game:
                         if point[0] > winner[0]:
                             winner = point
                         elif point[0] == winner[0]:
-                            print('empate')
-
+                            self.winner = self.dealer
+                            continue
                 if winner == point:
                     self.winner = play[0]
+                
+                print(self.winner)
 
             print('Winner: ', self.winner)
 
@@ -153,7 +157,7 @@ class Game:
         ntw.create_token(msg, player)
         cards = Cards()
 
-        player.i_am_dealer(ntw, msg, self)
+        player.i_am_dealer(ntw, msg, self, False)
 
         if not player.dealer:
             player.receive_cards(ntw, msg, self)
@@ -161,31 +165,39 @@ class Game:
             player.deal_cards(ntw, msg, cards, self)
         print('Dealt card:', self.dealt_card)
         cards.show_hand(player)
-
+        self.guess_round(ntw, msg, player, self.ROUND)
+        
         for ROUND in range(self.ROUND, 0, -1):
 
             print('----------------------------------------')
             print('\nROUND', self.ROUND-ROUND+1, end='')
 
-            player.i_am_dealer(ntw, msg, self)
+            player.i_am_dealer(ntw, msg, self, True)
             print('    -    Dealer: Player', ntw.players[self.dealer], '\n')
-            self.guess_round(ntw, msg, player, ROUND)
 
             cards.show_hand(player)
             player.play(ntw, msg, self)
-            #self.calc_points(player, cards)
+            self.calc_points(player, cards)
 
-            if not player.dealer:
-                received = False
-                while not received:
-                    data = msg.receive_message(ntw)
-                    if data and data['type'] == msg.token_type:
-                        received = True
-                        if msg.is_for_me(player, data):
-                            ntw.token = data
-                            player.dealer = True
-                    msg.send_message(ntw, player, data)
-            else:
-                ntw.token['destination'] = player.dest_addr
-                ntw.pass_token(msg, player)
-                player.dealer = False
+            while True:
+                if not player.dealer:
+                    received = False
+                    while not received:
+                        data = msg.receive_message(ntw)
+                        if data and data['type'] == msg.token_type:
+                            received = True
+                            if msg.is_for_me(player, data):
+                                ntw.token = data
+                                player.dealer = True
+                        msg.send_message(ntw, player, data)
+                    break
+                else:
+                    ntw.token['destination'] = self.winner 
+                    ntw.pass_token(msg, player)
+                    player.dealer = False
+        print('WINS:', player.wins)
+        dif = player.guessed - player.wins
+        if dif < 0:
+            dif = dif * -1
+        player.life -= dif
+        print('LIFE:', player.life)

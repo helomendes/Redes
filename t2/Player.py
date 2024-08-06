@@ -8,8 +8,8 @@ class Player:
         self.dest_addr = ('localhost', ports[self.id-1][1])
         self.set_dealer()
         self.token = False
-        self.msg_queue = []
         self.life = 12
+        self.wins = 0
 
     def set_dealer(self):
         if self.id == 1:
@@ -17,11 +17,12 @@ class Player:
         else:
             self.dealer = False
 
-    def i_am_dealer(self, ntw, msg, game):
+    def i_am_dealer(self, ntw, msg, game, WINNER):
         if self.dealer:
             game.dealer = self.org_addr
             dealer_msg = msg.create_message(msg.dealer_type, True, self.org_addr, self.org_addr, 'I am the dealer')
-
+            if WINNER:
+                self.wins += 1
             # REPETIDO
             while True:
                 msg.send_message(ntw, self, dealer_msg)
@@ -32,7 +33,7 @@ class Player:
             while True:
                 data = msg.receive_message(ntw)
                 msg.send_message(ntw, self, data)
-                if data['broadcast'] and data['type'] == msg.dealer_type:
+                if data and data['broadcast'] and data['type'] == msg.dealer_type:
                     game.dealer = data['origin']
                     break
 
