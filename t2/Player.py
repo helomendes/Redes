@@ -162,7 +162,6 @@ class Player:
                 data = msg.receive_message(ntw)
                 if msg.is_mine(self, data) and data['data'] == life_msg['data']:
                     received = True
-                    print('recebi a minha')
             received = False
             while not received:
                 data = msg.receive_message(ntw)
@@ -178,13 +177,11 @@ class Player:
                 if msg.is_for_me(self, data) and data['type'] == msg.life_type:
                     life = (data['origin'], data['data'])
                     if life not in lives:
-                        print(life)
                         lives.append(life)
                 msg.send_message(ntw, self, data)
 
             received = False
             while not received:
-                print('mandando fim')
                 msg.send_message(ntw, self, end_msg)
                 data = msg.receive_message(ntw)
                 if data and data['data'] == end_msg['data']:

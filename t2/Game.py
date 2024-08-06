@@ -184,6 +184,7 @@ class Game:
 
             player.i_am_dealer(ntw, msg, self, True)
             print('    -    Dealer: Player', ntw.players[self.dealer], '\n')
+            print(self.dealer)
 
             cards.show_hand(player)
             player.play(ntw, msg, self)
@@ -205,14 +206,11 @@ class Game:
                     ntw.token['destination'] = self.winner 
                     ntw.pass_token(msg, player)
                     player.dealer = False
-        print(player.dealer)
-        print('WINS:', player.wins)
+
+        player.i_am_dealer(ntw, msg, self, False)
         dif = player.guessed - player.wins
         if dif < 0:
             dif = dif * -1
         player.life -= dif
-        print('LIFE:', player.life)
-        print()
         player.show_life(ntw, msg, self)
-        print('showed')
         self.declare_winner(ntw, player)
