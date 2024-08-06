@@ -11,13 +11,7 @@
 #include "socket.h"
 #include "packet.h"
 
-// Auxilary Functions
-long long timestamp() {
-    struct timeval t;
-    gettimeofday(&t, NULL);
-    return ((t.tv_sec*1000) + (t.tv_usec/1000));
-}
-
+// Auxiliary Functions
 int add_vlan_bytes(char *send_buffer, char *buffer, int bytes)
 {
     int shift = 0;
@@ -42,6 +36,13 @@ int remove_vlan_bytes( char *buffer, char *receive_buffer, int buffer_size, int 
 }
 
 // Lib Functions
+
+uint64_t timestamp() {
+    struct timeval t;
+    gettimeofday(&t, NULL);
+    return ((t.tv_sec*1000) + (t.tv_usec/1000));
+}
+
 int create_raw_socket( char* interface )
 {
     int sockfd = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
@@ -125,7 +126,7 @@ void send_packet(int sockfd, char* buffer, int bytes, int ifindex)
     bytes += add_vlan_bytes(send_buffer, buffer, bytes);
 
     if (sendto(sockfd, send_buffer, bytes, 0, (struct sockaddr *) &addr, sizeof(struct sockaddr_ll)) < 0) {
-        fprintf(stderr, "erro em sendto\n");
+        fprintf(stderr, "Erro em sendto\n");
         close(sockfd);
         exit(2);
     }

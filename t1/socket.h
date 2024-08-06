@@ -10,6 +10,8 @@ typedef enum {
     UNEXPECTED_TYPE,
 } response_status;
 
+uint64_t timestamp();
+
 int create_raw_socket( char *interface );
 
 int expect_response( int sockfd, char *buffer, int buffer_size, int timeout_ms );
