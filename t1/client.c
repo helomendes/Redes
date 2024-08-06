@@ -211,8 +211,8 @@ void expect_descriptor( int sockfd, uint32_t *video_size, char *buffer, int buff
                 send_command(sockfd, buffer, ifindex, NACK);
             } else {
                 if (header.type == DESCRIPTOR) {
+                    *video_size = *((uint32_t *) (buffer + read_len));
                     send_command(sockfd, buffer, ifindex, ACK);
-                    *video_size = (uint32_t) buffer[read_len];
                     return;
                 } else {
                     fprintf(stderr, "Erro ao receber descritor de arquivo. Tipo recebido: %d\n", header.type);

@@ -97,7 +97,6 @@ void execute_list( int sockfd, char *videos_dir, char *data, char *buffer, int d
     }
 
     printf("Enviando video...\n");
-    printf("%s\n", video_path);
     if (send_video(sockfd, video_path, data, buffer, data_size, buffer_size, ifindex)) {
         printf("Erro ao enviar video, interrompendo transferencia\n");
         return;
@@ -215,7 +214,7 @@ int expect_filename( int sockfd, char *buffer, char *data, int buffer_size, int 
         }
     } while (timestamp() - last_packet < timeout_ms);
 
-    return 0;
+    return 1;
 }
 
 int send_descriptor( int sockfd, char *video_path, char *buffer, int buffer_size, int ifindex )
@@ -240,10 +239,17 @@ int send_descriptor( int sockfd, char *video_path, char *buffer, int buffer_size
     header.size = 10;
 
     int send_len = write_header(header, buffer);
-    memcpy(buffer + send_len, &file_size, 4);
-    memcpy(buffer + send_len + 4, &day, 1);
-    memcpy(buffer + send_len + 5, &month, 1);
-    memcpy(buffer + send_len + 6, &year, 2);
+
+    header.size = 0;
+    memcpy(buffer + send_len, &file_size, sizeof(uint32_t));
+    header.size += sizeof(uint32_t);
+    memcpy(buffer + send_len + header.size, &day, sizeof(uint8_t));
+    header.size += sizeof(uint8_t);
+    memcpy(buffer + send_len + header.size, &month, sizeof(uint8_t));
+    header.size += sizeof(uint8_t);
+    memcpy(buffer + send_len + header.size, &year, sizeof(uint16_t));
+
+    header.size = 10;
     send_len += header.size;
     send_len += write_crc(buffer, send_len);
 
@@ -294,12 +300,12 @@ int send_video( int sockfd, char *video_path, char *data, char *buffer, int data
         send_len += header.size;
         send_len += write_crc(buffer, send_len);
 
-        tries = 5;
+        tries = 3;
         timeout_ms = 500;
         send_packet(sockfd, buffer, send_len, ifindex);
         response = expect_response(sockfd, receive_buffer, buffer_size, timeout_ms);
         for (short try = 1; ((try <= tries) && (response != RECEIVED_ACK)); try++) {
-            while ((response == TIMEOUT) && (timeout_ms < 4000)) {
+            while ((response == TIMEOUT) && (timeout_ms < 2000)) {
                 timeout_ms = timeout_ms << 1;
                 send_packet(sockfd, buffer, send_len, ifindex);
                 response = expect_response(sockfd, receive_buffer, buffer_size, timeout_ms);
