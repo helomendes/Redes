@@ -109,10 +109,12 @@ void send_list( int sockfd, char *buffer, int buffer_size, int ifindex ) {
 
 void expect_show( int sockfd, char *data, char *buffer, int data_size, int buffer_size, int ifindex)
 {
-    // TODO: adicionar timeout
     struct packet_header_t header;
     int received_len, read_len;
-    while (1) {
+    uint64_t last_packet = timestamp();
+    unsigned short timeout_ms = 2000;
+
+    do {
         received_len = receive_packet(sockfd, buffer, buffer_size);
         if (received_len < 0) {
             fprintf(stderr, "Erro em recvfrom\n");
@@ -121,6 +123,7 @@ void expect_show( int sockfd, char *data, char *buffer, int data_size, int buffe
         }
 
         if (is_packet(buffer, received_len)) {
+            last_packet = timestamp();
             read_len = read_header(&header, buffer);
             if (! valid_crc(buffer, read_len + header.size)) {
                 send_command(sockfd, buffer, ifindex, NACK);
@@ -142,12 +145,11 @@ void expect_show( int sockfd, char *data, char *buffer, int data_size, int buffe
                 }
             }
         }
-    }
+    } while (timestamp() - last_packet < timeout_ms);
 }
 
 void send_filename( int sockfd, char *data, char *buffer, int buffer_size, int ifindex )
 {
-    // TODO: adicionar timeout e tentativas
     struct packet_header_t header = create_header();
     printf("Insira o nome do video que deseja transmitir: ");
     scanf("%[^\n]", data);
@@ -167,21 +169,34 @@ void send_filename( int sockfd, char *data, char *buffer, int buffer_size, int i
     send_len += header.size;
     send_len += write_crc(buffer, send_len);
 
-    int timeout_ms = 500;
-    send_packet(sockfd, buffer, send_len, ifindex);
-    if (expect_response(sockfd, buffer, buffer_size, timeout_ms)) {
-        fprintf(stderr, "Recebeu erro ao enviar nome do video para download\n");
-        close(sockfd);
-        exit(4);
+    char receive_buffer[buffer_size];
+    int response;
+    for (short try = 1; try <= 3; try++) {
+        send_packet(sockfd, buffer, send_len, ifindex);
+        response = expect_response(sockfd, receive_buffer, buffer_size, 2000);
+
+        if (response == RECEIVED_ACK) {
+            return;
+        } else if (response == TIMEOUT) {
+            fprintf(stderr, "Timeout ao enviar nome do video para download\n");
+            close(sockfd);
+            exit(3);
+        } else if (response == RECEIVED_ERROR) {
+            fprintf(stderr, "Recebeu erro ao enviar nome do video para download\n");
+            close(sockfd);
+            exit(4);
+        }
     }
 }
 
 void expect_descriptor( int sockfd, uint32_t *video_size, char *buffer, int buffer_size, int ifindex )
 {
-    // TODO: incluir timeout
     struct packet_header_t header;
     int received_len, read_len;
-    while (1) {
+    uint64_t last_packet = timestamp();
+    unsigned short timeout_ms = 2000;
+
+    do {
         received_len = receive_packet(sockfd, buffer, buffer_size);
         if (received_len < 0) {
             fprintf(stderr, "Erro em recvfrom\n");
@@ -190,6 +205,7 @@ void expect_descriptor( int sockfd, uint32_t *video_size, char *buffer, int buff
         }
 
         if (is_packet(buffer, received_len)) {
+            last_packet = timestamp();
             read_len = read_header(&header, buffer);
             if (! valid_crc(buffer, read_len + header.size)) {
                 send_command(sockfd, buffer, ifindex, NACK);
@@ -199,15 +215,13 @@ void expect_descriptor( int sockfd, uint32_t *video_size, char *buffer, int buff
                     *video_size = (uint32_t) buffer[read_len];
                     return;
                 } else {
-                    // nack, erro ou outra coisa (que vai ser um erro)
-                    // pode ser erro de file not found, encerrar o programa ou pedir o nome do arquivo de novo?
                     fprintf(stderr, "Erro ao receber descritor de arquivo. Tipo recebido: %d\n", header.type);
                     close(sockfd);
                     exit(4);
                 }
             }
         }
-    }
+    } while (timestamp() - last_packet < timeout_ms);
 }
 
 void expect_download( int sockfd, char *video_path, char *data, char *buffer, uint32_t video_size, int data_size, int buffer_size, int ifindex )
@@ -222,7 +236,10 @@ void expect_download( int sockfd, char *video_path, char *data, char *buffer, ui
     int received_len, read_len;
     unsigned short last_sequence = 0;
     uint32_t written_bytes = 0;
-    while (1) {
+    uint64_t last_packet = timestamp();
+    unsigned short timeout_ms = 2000;
+
+    do {
         received_len = receive_packet(sockfd, buffer, buffer_size);
         if (received_len < 0) {
             fprintf(stderr, "Erro em recvfrom\n");
@@ -231,6 +248,7 @@ void expect_download( int sockfd, char *video_path, char *data, char *buffer, ui
         }
 
         if (is_packet(buffer, received_len)) {
+            last_packet = timestamp();
             read_len = read_header(&header, buffer);
             if (! valid_crc(buffer, read_len + header.size)) {
                 printf("Erro detectado pelo crc na recepcao de um pacote, mandando NACK\n");
@@ -270,6 +288,7 @@ void expect_download( int sockfd, char *video_path, char *data, char *buffer, ui
                 }
             }
         }
-    }
+    } while (timestamp() - last_packet < timeout_ms);
+
     printf("Bytes escritos: %d\n", written_bytes);
 }
