@@ -11,7 +11,7 @@ void is_dir( char *dir )
     struct stat dir_stats;
     stat(dir, &dir_stats);
     if (!S_ISDIR(dir_stats.st_mode)) {
-        printf("Erro, caminho fornecido nao eh um diretorio\n");
+        fprintf(stderr, "Erro, caminho fornecido nao eh um diretorio\n");
         exit(1);
     }
 }
@@ -35,7 +35,7 @@ void preprocess_video_path( char *videos_dir )
     int null_char = 0;
     while (videos_dir[null_char] != '\0') null_char++;
     if (null_char == 0) {
-        printf("Erro ao processar caminho para os videos: '%s'\n", videos_dir);
+        fprintf(stderr, "Erro ao processar caminho para os videos: '%s'\n", videos_dir);
         exit(1);
     }
     if (videos_dir[null_char-1] != '/') {
@@ -49,9 +49,9 @@ void create_video_path( char *videos_dir, char *video_basename, char *video_path
     int null_char = 0;
     while (videos_dir[null_char] != '\0') null_char++;
     if (null_char == 0) {
-        printf("Erro ao criar caminho para o video escolhido\n");
-        printf("Diretorio dos videos: %s\n", videos_dir);
-        printf("Video escolhidos: %s\n", video_basename);
+        fprintf(stderr, "Erro ao criar caminho para o video escolhido\n");
+        fprintf(stderr, "Diretorio dos videos: %s\n", videos_dir);
+        fprintf(stderr, "Video escolhido: %s\n", video_basename);
         exit(1);
     }
     strncpy(video_path, videos_dir, null_char);
@@ -65,7 +65,7 @@ void play_video( char *path )
 
     int result = system(command);
     if (result == -1) {
-        printf("Erro ao reproduzir o video %s\n", path);
+        fprintf(stderr, "Erro ao reproduzir o video %s\n", path);
         exit(1);
     }
 }

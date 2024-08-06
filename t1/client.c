@@ -14,8 +14,9 @@
 #define ANSI_COLOR_BLUE     "\x1b[34m"
 #define ANSI_COLOR_RESET    "\x1b[0m"
 
-#define BUFFER_SIZE 128
-#define DATA_SIZE   63
+#define BUFFER_SIZE     128
+#define DATA_SIZE       63
+#define INTERFACE_SIZE  12
 
 int get_index( char *interface );
 int read_message( char *message );
@@ -23,20 +24,20 @@ int read_message( char *message );
 void send_list( int sockfd, char *buffer, int buffer_size, int ifindex );
 void expect_show( int sockfd, char *data, char *buffer, int data_size, int buffer_size, int ifindex );
 void send_filename( int sockfd, char *data, char *buffer, int buffer_size, int ifindex );
-void expect_descriptor( int sockfd, char *buffer, int buffer_size, int ifindex );
-void expect_download( int sockfd, char *video_path, char *data, char *buffer, int data_size, int buffer_size, int ifindex );
+void expect_descriptor( int sockfd, uint32_t *video_size, char *buffer, int buffer_size, int ifindex );
+void expect_download( int sockfd, char *video_path, char *data, char *buffer, uint32_t video_size, int data_size, int buffer_size, int ifindex );
 
 int main ( int argc, char **argv ) {
     if (argc != 3) {
-        printf("Erro: execucao incorreta\n");
-        printf("Exemplo: sudo ./client interface_de_rede diretorio_de_videos\n");
+        fprintf(stderr, "Erro: execucao incorreta\n");
+        fprintf(stderr, "Exemplo: sudo ./client interface_de_rede diretorio_de_videos\n");
         exit(1);
     }
 
     char buffer[BUFFER_SIZE], data[DATA_SIZE];
-    char interface[8], videos_dir[PATH_MAX], video_path[PATH_MAX];
+    char interface[INTERFACE_SIZE], videos_dir[PATH_MAX], video_path[PATH_MAX];
 
-    strncpy(interface, argv[1], 8);
+    strncpy(interface, argv[1], INTERFACE_SIZE);
     int ifindex = get_index(interface);
     strncpy(videos_dir, argv[2], PATH_MAX);
     is_dir(videos_dir);
@@ -52,10 +53,11 @@ int main ( int argc, char **argv ) {
 
     send_filename(sockfd, data, buffer, BUFFER_SIZE, ifindex);
     create_video_path(videos_dir, data, video_path);
-    expect_descriptor(sockfd, buffer, BUFFER_SIZE, ifindex);
+    uint32_t video_size;
+    expect_descriptor(sockfd, &video_size, buffer, BUFFER_SIZE, ifindex);
 
     printf("Baixando video...\n");
-    expect_download(sockfd, video_path, data, buffer, DATA_SIZE, BUFFER_SIZE, ifindex);
+    expect_download(sockfd, video_path, data, buffer, video_size, DATA_SIZE, BUFFER_SIZE, ifindex);
 
     play_video(video_path);
 
@@ -97,8 +99,9 @@ void send_list( int sockfd, char *buffer, int buffer_size, int ifindex ) {
         if (response == RECEIVED_ACK) return;
 
         if (response == TIMEOUT) {
-            printf("Timeout no pedido de lista para o servidor\n");
-            exit(1);
+            fprintf(stderr, "Timeout no pedido de lista para o servidor\n");
+            close(sockfd);
+            exit(3);
         }
     }
 
@@ -112,9 +115,9 @@ void expect_show( int sockfd, char *data, char *buffer, int data_size, int buffe
     while (1) {
         received_len = receive_packet(sockfd, buffer, buffer_size);
         if (received_len < 0) {
-            perror("erro em recvfrom");
+            fprintf(stderr, "Erro em recvfrom\n");
             close(sockfd);
-            exit(1);
+            exit(2);
         }
 
         if (is_packet(buffer, received_len)) {
@@ -131,9 +134,9 @@ void expect_show( int sockfd, char *data, char *buffer, int data_size, int buffe
                     printf("%s\n", data);
                     send_command(sockfd, buffer, ifindex, ACK);
                 } else if (header.type == ERROR) {
-                    printf("Erro na recepcao da lista de videos\n");
+                    fprintf(stderr, "Erro na recepcao da lista de videos\n");
                     close(sockfd);
-                    exit(1);
+                    exit(4);
                 } else {
                     printf("Pacote de tipo inesperado recebido: %d\n", header.type);
                 }
@@ -167,45 +170,47 @@ void send_filename( int sockfd, char *data, char *buffer, int buffer_size, int i
     int timeout_ms = 500;
     send_packet(sockfd, buffer, send_len, ifindex);
     if (expect_response(sockfd, buffer, buffer_size, timeout_ms)) {
-        fprintf(stderr, "Recebeu erro\n");
-        exit(1);
+        fprintf(stderr, "Recebeu erro ao enviar nome do video para download\n");
+        close(sockfd);
+        exit(4);
     }
 }
 
-void expect_descriptor( int sockfd, char *buffer, int buffer_size, int ifindex )
+void expect_descriptor( int sockfd, uint32_t *video_size, char *buffer, int buffer_size, int ifindex )
 {
+    // TODO: incluir timeout
     struct packet_header_t header;
     int received_len, read_len;
     while (1) {
-        //received_len = recvfrom(sockfd, buffer, buffer_size, 0, NULL, NULL);
         received_len = receive_packet(sockfd, buffer, buffer_size);
         if (received_len < 0) {
-            perror("erro em recvfrom");
+            fprintf(stderr, "Erro em recvfrom\n");
             close(sockfd);
-            exit(1);
+            exit(2);
         }
 
         if (is_packet(buffer, received_len)) {
             read_len = read_header(&header, buffer);
             if (! valid_crc(buffer, read_len + header.size)) {
-                printf("Erro detectado pelo crc\n");
                 send_command(sockfd, buffer, ifindex, NACK);
             } else {
                 if (header.type == DESCRIPTOR) {
                     send_command(sockfd, buffer, ifindex, ACK);
+                    *video_size = (uint32_t) buffer[read_len];
                     return;
                 } else {
                     // nack, erro ou outra coisa (que vai ser um erro)
                     // pode ser erro de file not found, encerrar o programa ou pedir o nome do arquivo de novo?
                     fprintf(stderr, "Erro ao receber descritor de arquivo. Tipo recebido: %d\n", header.type);
-                    exit(1);
+                    close(sockfd);
+                    exit(4);
                 }
             }
         }
     }
 }
 
-void expect_download( int sockfd, char *video_path, char *data, char *buffer, int data_size, int buffer_size, int ifindex )
+void expect_download( int sockfd, char *video_path, char *data, char *buffer, uint32_t video_size, int data_size, int buffer_size, int ifindex )
 {
     FILE *video = fopen(video_path, "w");
     if (! video) {
@@ -220,9 +225,9 @@ void expect_download( int sockfd, char *video_path, char *data, char *buffer, in
     while (1) {
         received_len = receive_packet(sockfd, buffer, buffer_size);
         if (received_len < 0) {
-            perror("erro em recvfrom");
+            fprintf(stderr, "Erro em recvfrom\n");
             close(sockfd);
-            exit(1);
+            exit(2);
         }
 
         if (is_packet(buffer, received_len)) {
@@ -240,17 +245,24 @@ void expect_download( int sockfd, char *video_path, char *data, char *buffer, in
 
                 if (header.type == ERROR) {
                     send_command(sockfd, buffer, ifindex, ACK);
-                    printf("Erro na transmissao, interrompendo download\n");
+
+                    fprintf(stderr, "Erro na transmissao, interrompendo download\n");
                     fclose(video);
                     close(sockfd);
-                    exit(1);
+                    exit(4);
                 }
 
                 if (header.type == DATA) {
                     if ((header.sequence  > last_sequence) || ((header.sequence == 0) && (last_sequence == MAX_SEQUENCE_VALUE))) {
-                        fwrite(buffer + read_len, header.size, 1, video);
-                        written_bytes += header.size;
-                        last_sequence = header.sequence;
+                        if (header.size != data_size) {
+                            fwrite(buffer + read_len, video_size - written_bytes, 1, video);
+                            written_bytes = video_size; // wb += vs - wb <=> wb = wb + vs - wb <=> wb = vs
+                            last_sequence = header.sequence;
+                        } else {
+                            fwrite(buffer + read_len, header.size, 1, video);
+                            written_bytes += header.size;
+                            last_sequence = header.sequence;
+                        }
                     }
                     send_command(sockfd, buffer, ifindex, ACK);
                 } else {

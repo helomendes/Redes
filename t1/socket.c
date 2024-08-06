@@ -47,7 +47,8 @@ int create_raw_socket( char* interface )
     int sockfd = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
     if (sockfd == -1) {
         fprintf(stderr, "Erro ao criar socket: Verifique se voce eh root!\n");
-        exit(1);
+        close(sockfd);
+        exit(2);
     }
 
     int ifindex = if_nametoindex(interface);
@@ -59,7 +60,8 @@ int create_raw_socket( char* interface )
 
     if (bind(sockfd, (struct sockaddr*) &addr, sizeof(addr)) == -1) {
         fprintf(stderr, "Erro ao fazer bind no socket\n");
-        exit(1);
+        close(sockfd);
+        exit(2);
     }
 
     struct packet_mreq mr = {0};
@@ -68,7 +70,8 @@ int create_raw_socket( char* interface )
 
     if (setsockopt(sockfd, SOL_PACKET, PACKET_ADD_MEMBERSHIP, &mr, sizeof(mr)) == -1) {
         fprintf(stderr, "Erro ao fazer setsockopt: verifique se a interface de rede foi especificada corretamente\n");
-        exit(1);
+        close(sockfd);
+        exit(2);
     }
 
     return sockfd;
@@ -82,9 +85,9 @@ int expect_response( int sockfd, char *buffer, int buffer_size, int timeout_ms )
     do {
         received_len = receive_packet(sockfd, buffer, buffer_size);
         if (received_len < 0) {
-            perror("erro em recvfrom");
+            fprintf(stderr, "erro em recvfrom\n");
             close(sockfd);
-            exit(1);
+            exit(2);
         }
 
         if (is_packet(buffer, received_len)) {
@@ -122,8 +125,9 @@ void send_packet(int sockfd, char* buffer, int bytes, int ifindex)
     bytes += add_vlan_bytes(send_buffer, buffer, bytes);
 
     if (sendto(sockfd, send_buffer, bytes, 0, (struct sockaddr *) &addr, sizeof(struct sockaddr_ll)) < 0) {
-        perror("sendto");
-        exit(1);
+        fprintf(stderr, "erro em sendto\n");
+        close(sockfd);
+        exit(2);
     }
 }
 
@@ -131,7 +135,8 @@ void send_command( int sockfd, char *buffer, int ifindex, unsigned char command 
 {
     if ((command != ACK) && (command != NACK) && (command != LIST) && (command != END)) {
         fprintf(stderr, "Comando desconhecido: %d\n", (int) command);
-        exit(1);
+        close(sockfd);
+        exit(2);
     }
 
     struct packet_header_t header = create_header();
@@ -151,8 +156,9 @@ void send_command( int sockfd, char *buffer, int ifindex, unsigned char command 
     send_len += add_vlan_bytes(send_buffer, buffer, send_len);
 
     if (sendto(sockfd, send_buffer, send_len, 0, (struct sockaddr *) &addr, sizeof(struct sockaddr_ll)) < 0) {
-        perror("sendto");
-        exit(1);
+        fprintf(stderr, "erro em sendto\n");
+        close(sockfd);
+        exit(2);
     }
 }
 
@@ -177,7 +183,8 @@ void send_error( int sockfd, char *buffer, int ifindex, unsigned char error )
     send_len += add_vlan_bytes(send_buffer, buffer, send_len);
 
     if (sendto(sockfd, send_buffer, send_len, 0, (struct sockaddr *) &addr, sizeof(struct sockaddr_ll)) < 0) {
-        perror("sendto");
-        exit(1);
+        fprintf(stderr, "erro em sendto\n");
+        close(sockfd);
+        exit(2);
     }
 }
