@@ -36,8 +36,6 @@ class Player:
                     game.dealer = data['origin']
                     break
 
-        print('   -   Dealer: Player', ntw.players[game.dealer], '\n')
-
     def deal_cards(self, ntw, msg, cards, game):
         for PLAYER in range(4):
             hand = cards.get_hand(game.ROUND)

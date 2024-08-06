@@ -115,16 +115,39 @@ class Game:
                 if msg.is_mine(player, data) and data['type'] == msg.end_type:
                     break
 
-    def calc_points(self, player):
+    def calc_points(self, player, cards):
         if player.dealer:
             print('***************************************')
             print('Dealt card:', self.dealt_card)
             print('Plays:')
             print(self.plays)
 
+            dealt = cards.points(self.dealt_card)
+            manilha = cards.manilha(dealt)
+            winner = (0, 0)
+            for play in self.plays:
+                point = cards.points(play[1])
+                if point[1] == manilha[1]:
+                    if winner[1] == manilha[1]:
+                        if point[0] > winner[0]:
+                            winner = point
+                        elif point[0] == winner[0]:
+                            print('empate')
+                    else:
+                        winner = point
+                else:
+                    if point[1] > winner[1]:
+                        winner = point
+                    elif point[1] == winner[1]:
+                        if point[0] > winner[0]:
+                            winner = point
+                        elif point[0] == winner[0]:
+                            print('empate')
 
+                if winner == point:
+                    self.winner = play[0]
 
-        return
+            print('Winner: ', self.winner)
 
     def start(self, ntw, player, msg):
         ntw.create_token(msg, player)
@@ -145,53 +168,24 @@ class Game:
             print('\nROUND', self.ROUND-ROUND+1, end='')
 
             player.i_am_dealer(ntw, msg, self)
+            print('    -    Dealer: Player', ntw.players[self.dealer], '\n')
             self.guess_round(ntw, msg, player, ROUND)
 
             cards.show_hand(player)
             player.play(ntw, msg, self)
-            #self.calc_points(player)
+            #self.calc_points(player, cards)
 
-            '''     
-                if player.dealer:
-                    while True:
-                        data = msg.receive_message(ntw)
-                        print(data)
-                        msg.send_message(ntw, player, data)
-                
-                self.calc_points(player)
-            
-            # calculo de pontos
-            # termina as cartas
-            # define ganhador
-            # o ganhador vira o dealer
-            # o bastao é passado para o ganhador
-            if player.dealer:
-                print('calculo de pontos')
-                print('definir ganhador')
-                print('definir novo dealer')
-                print('passa o bastao')
-            print()
-           
-            '''
-            #self.end_of_round(ntw, player, msg)
-            '''
-            
-            while player.token:
-                print('Player', player.id, 'passing token')
+            if not player.dealer:
+                received = False
+                while not received:
+                    data = msg.receive_message(ntw)
+                    if data and data['type'] == msg.token_type:
+                        received = True
+                        if msg.is_for_me(player, data):
+                            ntw.token = data
+                            player.dealer = True
+                    msg.send_message(ntw, player, data)
+            else:
+                ntw.token['destination'] = player.dest_addr
                 ntw.pass_token(msg, player)
-                data = msg.receive_message(ntw)
-                if data['type'] == msg.token_type:
-                    player.token = False
-            
-            while not player.token:
-                print('Player', player.id, 'receiving token')
-                data = msg.receive_message(ntw)
-                msg.send_message(ntw, player, data)
-                if msg.permission(player, data) == 2:
-                    if data['type'] == msg.token_type:
-                        print('its for me')
-                        ntw.receive_token(player, data)
-                else:
-                    break
-            '''
-
+                player.dealer = False
