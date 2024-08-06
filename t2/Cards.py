@@ -18,9 +18,9 @@ class Cards:
         return random.choice(self.deck)
    
     def show_hand(self, player):
-        print()
+        print('Suas cartas:\n')
         for i, card in enumerate(player.hand):
-            print(i+1, ':', card, '   ', end='')
+            print(i+1, ': |', card, '|   ', end='')
         print('\n')
 
     def points(self, card):

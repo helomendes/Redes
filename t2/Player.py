@@ -23,7 +23,6 @@ class Player:
             dealer_msg = msg.create_message(msg.dealer_type, True, self.org_addr, self.org_addr, 'I am the dealer')
             if WINNER:
                 self.wins += 1
-            # REPETIDO
             while True:
                 msg.send_message(ntw, self, dealer_msg)
                 data = msg.receive_message(ntw)
@@ -45,7 +44,6 @@ class Player:
             else:
                 hand_msg = msg.create_message(msg.hand_type, False, self.org_addr, ('localhost', ntw.ports[PLAYER][0]), hand)
 
-                # REPETIDO
                 while True:
                     msg.send_message(ntw, self, hand_msg)
                     data = msg.receive_message(ntw)
@@ -55,7 +53,6 @@ class Player:
         game.dealt_card = cards.draw_card()
         card_msg = msg.create_message(msg.card_type, True, self.org_addr, self.org_addr, game.dealt_card)
 
-        # REPETIDO
         while True:
             msg.send_message(ntw, self, card_msg)
             data = msg.receive_message(ntw)
@@ -73,22 +70,29 @@ class Player:
                 break
         
     def take_a_guess(self, msg, game, ROUND):
-        '''
-        guess = int(input('My guess: '))
-        '''
-        guess = random.randint(0, ROUND)
-        print('My guess:', guess)
+        while True:
+            guess = int(input('Dê seu palpite: '))
+            if guess >= 0 and guess < game.ROUND:
+                break
+            print('Inválido. Tente novamente.')
+        
+        #guess = random.randint(0, ROUND)
+        print('Meu palpite:', guess, '\n')
 
         guess_msg = msg.create_message(msg.guess_type, False, self.org_addr, game.dealer, guess)
         return guess_msg
 
     def pick_a_card(self, msg, game):
-        '''
-        ind = int(input('Pick a card: '))
+        while True:
+            ind = int(input('Escolha uma carta: '))
+            if ind > 0 and ind <= len(self.hand):
+                break
+            print('Inválido. Tente novamente.')
+
         card = self.hand[ind-1]
-        '''
-        card = random.choice(self.hand)
-        print('Jogar ', card)
+        
+        #card = random.choice(self.hand)
+        print('Carta jogada: ', card, '\n')
         self.hand.remove(card)
         card_msg = msg.create_message(msg.play_type, False, self.org_addr, game.dealer, card)
 
@@ -140,8 +144,9 @@ class Player:
 
             plays = sorted(plays, key=lambda play: play[0][1])
             game.plays = plays
+            print('Cartas jogadas:\n')
             for play in game.plays:
-                print('Player', ntw.players[play[0]], ':', play[1])
+                print('Jogador', ntw.players[play[0]], ':', play[1])
             print()
 
     def show_life(self, ntw, msg, game):

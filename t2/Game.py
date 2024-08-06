@@ -4,7 +4,7 @@ from Cards import Cards
 
 class Game:
     def __init__(self):
-        self.ROUND = 4
+        self.ROUND = 13 
         self.dealt_card = None
         self.dealer = None
         self.plays = None
@@ -98,8 +98,9 @@ class Game:
             
             guesses = sorted(guesses, key=lambda guess: guess[0][1])
             self.guesses = guesses
+            print('Palpites:\n')
             for guess in self.guesses:
-                print('Player', ntw.players[guess[0]], ':', guess[1])
+                print('Jogador', ntw.players[guess[0]], ':', guess[1])
             print()
 
     def end_of_round(self, ntw, player, msg):
@@ -117,14 +118,10 @@ class Game:
                 if msg.is_mine(player, data) and data['type'] == msg.end_type:
                     break
 
-    def calc_points(self, player, cards):
+    def calc_points(self, ntw, player, cards):
         if player.dealer:
-            print(self.plays)
-
             dealt = cards.points(self.dealt_card)
             manilha = cards.manilha(dealt)
-            print(dealt)
-            print(manilha)
             winner = (0, 0)
             for play in self.plays:
                 point = cards.points(play[1])
@@ -149,9 +146,7 @@ class Game:
                 if winner == point:
                     self.winner = play[0]
                 
-                print(self.winner)
-
-            print('Winner: ', self.winner)
+            print('Vencedor do round: ', ntw.players[self.winner], '\n')
 
     def declare_winner(self, ntw, player):
         if player.dealer:
@@ -160,7 +155,7 @@ class Game:
                 if life[1] > winner[1]:
                     winner = life
 
-            print('WINNER: Player', ntw.players[winner[0]])
+            print('VENCEDOR: Jogador', ntw.players[winner[0]])
 
 
     def start(self, ntw, player, msg):
@@ -173,7 +168,7 @@ class Game:
             player.receive_cards(ntw, msg, self)
         else:
             player.deal_cards(ntw, msg, cards, self)
-        print('Dealt card:', self.dealt_card)
+        print('Carta virada:', self.dealt_card)
         cards.show_hand(player)
         self.guess_round(ntw, msg, player, self.ROUND)
         
@@ -183,12 +178,11 @@ class Game:
             print('\nROUND', self.ROUND-ROUND+1, end='')
 
             player.i_am_dealer(ntw, msg, self, True)
-            print('    -    Dealer: Player', ntw.players[self.dealer], '\n')
-            print(self.dealer)
+            print('    -    Carteador: Jogador', ntw.players[self.dealer], '\n')
 
             cards.show_hand(player)
             player.play(ntw, msg, self)
-            self.calc_points(player, cards)
+            self.calc_points(ntw, player, cards)
 
             while True:
                 if not player.dealer:
