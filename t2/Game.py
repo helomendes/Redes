@@ -205,6 +205,7 @@ class Game:
                     ntw.token['destination'] = self.winner 
                     ntw.pass_token(msg, player)
                     player.dealer = False
+        print(player.dealer)
         print('WINS:', player.wins)
         dif = player.guessed - player.wins
         if dif < 0:
@@ -213,4 +214,5 @@ class Game:
         print('LIFE:', player.life)
         print()
         player.show_life(ntw, msg, self)
+        print('showed')
         self.declare_winner(ntw, player)
