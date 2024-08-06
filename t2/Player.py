@@ -89,34 +89,59 @@ class Player:
         card = self.hand[ind-1]
         '''
         card = random.choice(self.hand)
-        print(card)
+        print('Jogar ', card)
         self.hand.remove(card)
-        card_msg = msg.create_message(msg.card_type, False, self.org_addr, game.dealer, card)
+        card_msg = msg.create_message(msg.play_type, False, self.org_addr, game.dealer, card)
 
         return card_msg
 
     def play(self, ntw, msg, game):
-        card_msg = self.pick_a_card(msg, game)
+        play_msg = self.pick_a_card(msg, game)
+        end_msg = msg.create_message(msg.end_type, True, self.org_addr, game.dealer, 'end of play round')
         
-        game.cards = []
-        while len(game.cards) < 4:
-            msg.send_message(ntw, self, card_msg)
-            data = msg.receive_message(ntw)
-            msg.send_message(ntw, self, data)
-            if msg.is_for_me(self, data) and data['type'] == msg.card_type:
-                card = (data['origin'], data['data'])
-                if card not in game.cards:
-                    game.cards.append(card)
-            elif data and data['type'] == msg.warning_type:
-                break
+        if not self.dealer:
+            received = False
+            while not received:
+                data = msg.receive_message(ntw)
+                if data and data['type'] == msg.play_type:
+                    received = True
+            received = False
+            while not received:
+                if data and data['type'] == msg.play_type:
+                    msg.send_message(ntw, self, data)
+                msg.send_message(ntw, self, play_msg)
+                data = msg.receive_message(ntw)
+                if msg.is_mine(self, data) and data['data'] == play_msg['data']:
+                    received = True
+            received = False
+            while not received:
+                data = msg.receive_message(ntw)
+                if data and data['data'] == end_msg['data']:
+                    received = True
+                msg.send_message(ntw, self, data)
 
-        if self.dealer:
-            end_msg = msg.create_message(msg.warning_type, True, self.org_addr, game.dealer, 'end_of_round')
-            while True:
+
+        else:
+            plays = []
+            while len(plays) < 4:
+                msg.send_message(ntw, self, play_msg)
+                data = msg.receive_message(ntw)
+                if msg.is_for_me(self, data) and data['type'] == msg.play_type:
+                    play = (data['origin'], data['data'])
+                    if play not in plays:
+                        plays.append(play)
+                msg.send_message(ntw, self, data)
+
+            received = False
+            while not received:
                 msg.send_message(ntw, self, end_msg)
                 data = msg.receive_message(ntw)
-                if msg.is_mine(self, data):
-                    break
-                msg.send_message(ntw, self, data)
-        
+                if data and data['data'] == end_msg['data']:
+                    received = True
+
+            plays = sorted(plays, key=lambda play: play[0][1])
+            game.plays = plays
+            for play in plays:
+                print('Player', ntw.players[play[0]], ':', play[1])
+            print()
 

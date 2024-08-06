@@ -11,6 +11,7 @@ class Message:
         self.guess_type = 'guess_type'
         self.warning_type = 'warning_type'
         self.dealer_type = 'dealer_type'
+        self.play_type = 'play_type'
 
     def create_message(self, typ, broadcast, org, dest, data):
         msg = {

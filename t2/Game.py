@@ -25,7 +25,7 @@ class Game:
     def new_round(self, ntw, player, msg, game):
         game.dealt_card = None
         game.dealer = None
-        game.guesses = None
+        game.plays = None
         game.cards = None
 
         if not player.dealer:
@@ -46,61 +46,53 @@ class Game:
 
     def guess_round(self, ntw, msg, player, game, ROUND):
         guess_msg = player.take_a_guess(msg, game, ROUND)
-        '''
-        guesses = []
-        while len(guesses) < 4:
-            msg.send_message(ntw, player, guess_msg)
-            data = msg.receive_message(ntw)
-            msg.send_message(ntw, player, data)
-            if msg.is_for_me(player, data) and data['type'] == msg.guess_type:
-                guess = (data['origin'], data['data'])
-                if guess not in guesses:
-                    guesses.append(guess)
-            elif data and data['type'] == msg.warning_type:
-                break
-        if player.dealer:
-            end_msg = msg.create_message(msg.warning_type, True, player.org_addr, player.org_addr, 'end of guesses')
-            while True:
-                msg.send_message(ntw, player, end_msg)
-                data = msg.receive_message(ntw)
-                if msg.is_mine(player, data):
-                    break
-                msg.send_message(ntw, player, data)
+        end_msg = msg.create_message(msg.end_type, True, player.org_addr, game.dealer, 'end of guess round')
 
-        
-        '''
         if not player.dealer:
-            while True:
+            received = False
+            while not received:
+                data = msg.receive_message(ntw)
+                if data and data['type'] == msg.guess_type:
+                    received = True
+            received = False
+            while not received:
+                msg.send_message(ntw, player, data)
                 msg.send_message(ntw, player, guess_msg)
                 data = msg.receive_message(ntw)
+                if msg.is_mine(player, data) and data['data'] == guess_msg['data']:
+                    received = True
+                elif data and data['data'] == end_msg['data']:
+                    received = True
                 msg.send_message(ntw, player, data)
-                if data and data['type'] == msg.warning_type:
-                    break
+            received = False
+            while not received:
+                data = msg.receive_message(ntw)
+                if data and data['data'] == end_msg['data']:
+                    received = True
+                msg.send_message(ntw, player, data)
         else:
             guesses = []
-            guess = (guess_msg['origin'], guess_msg['data'])
-            guesses.append(guess)
             while len(guesses) < 4:
+                msg.send_message(ntw, player, guess_msg)
                 data = msg.receive_message(ntw)
-                msg.send_message(ntw, player, data)
-                if data and data['type'] == msg.guess_type:
+                if msg.is_for_me(player, data) and data['type'] == msg.guess_type:
                     guess = (data['origin'], data['data'])
                     if guess not in guesses:
                         guesses.append(guess)
-            end_msg = msg.create_message(msg.warning_type, True, player.org_addr, player.org_addr, 'end of guesses')
-            while True:
+                msg.send_message(ntw, player, data)
+                
+            received = False
+            while not received:
                 msg.send_message(ntw, player, end_msg)
                 data = msg.receive_message(ntw)
-                if msg.is_mine(player, data) and data['data'] == end_msg['data']:
-                    break
-                msg.send_message(ntw, player, data)
-
+                if data and data['data'] == end_msg['data']:
+                    received = True
+            
             guesses = sorted(guesses, key=lambda guess: guess[0][1])
             game.guesses = guesses
             for guess in guesses:
                 print('Player', ntw.players[guess[0]], ':', guess[1])
             print()
-        
 
     def end_of_round(self, ntw, player, msg):
         if not player.dealer:
@@ -116,6 +108,9 @@ class Game:
                 data = msg.receive_message(ntw)
                 if msg.is_mine(player, data) and data['type'] == msg.end_type:
                     break
+
+    def calc_points(self, player):
+        return
 
     def start(self, ntw, player, msg):
         ntw.create_token(msg, player)
@@ -141,9 +136,20 @@ class Game:
 
             # cada um joga uma carta
     
+            
             for _ in range(len(player.hand)):
+                print('\nNOVA RODADA DE CARTAS\n')
                 cards.show_hand(player)
                 player.play(ntw, msg, self)
+            '''     
+                if player.dealer:
+                    while True:
+                        data = msg.receive_message(ntw)
+                        print(data)
+                        msg.send_message(ntw, player, data)
+                
+                self.calc_points(player)
+            
             # calculo de pontos
             # termina as cartas
             # define ganhador
@@ -155,10 +161,11 @@ class Game:
                 print('definir novo dealer')
                 print('passa o bastao')
             print()
-            
-            self.end_of_round(ntw, player, msg)
-
+           
             '''
+            #self.end_of_round(ntw, player, msg)
+            '''
+            
             while player.token:
                 print('Player', player.id, 'passing token')
                 ntw.pass_token(msg, player)
