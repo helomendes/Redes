@@ -2,14 +2,20 @@ import random
 from Cards import Cards
 
 class Player:
-    def __init__(self, ports):
-        self.id = int(input())
-        self.org_addr = ('localhost', ports[self.id-1][0])
-        self.dest_addr = ('localhost', ports[self.id-1][1])
+    def __init__(self, ntw, ip_addr, game):
+        self.id = int(input('ID do Jogador: '))
+        self.set_addrs(ntw, ip_addr)
         self.set_dealer()
+        self.hand = None
         self.token = False
-        self.life = 12
+        self.life = game.ROUND
         self.wins = 0
+
+    def set_addrs(self, ntw, ip_addr):
+        ip_local = ntw.get_local_ip()
+        self.org_addr = (ip_local, ntw.ports[self.id-1][0])
+        self.dest_addr = (f'{ip_addr}', ntw.ports[self.id-1][1])
+
 
     def set_dealer(self):
         if self.id == 1:
@@ -19,8 +25,8 @@ class Player:
 
     def i_am_dealer(self, ntw, msg, game, WINNER):
         if self.dealer:
-            game.dealer = self.org_addr
-            dealer_msg = msg.create_message(msg.dealer_type, True, self.org_addr, self.org_addr, 'I am the dealer')
+            game.dealer = self.id
+            dealer_msg = msg.create_message(msg.dealer_type, True, self.id, self.id, 'I am the dealer')
             if WINNER:
                 self.wins += 1
             while True:
@@ -35,14 +41,14 @@ class Player:
                 if data and data['broadcast'] and data['type'] == msg.dealer_type:
                     game.dealer = data['origin']
                     break
-
+        
     def deal_cards(self, ntw, msg, cards, game):
         for PLAYER in range(4):
             hand = cards.get_hand(game.ROUND)
             if self.id-1 == PLAYER:
                 self.hand = hand
             else:
-                hand_msg = msg.create_message(msg.hand_type, False, self.org_addr, ('localhost', ntw.ports[PLAYER][0]), hand)
+                hand_msg = msg.create_message(msg.hand_type, False, self.id, PLAYER+1, hand)
 
                 while True:
                     msg.send_message(ntw, self, hand_msg)
@@ -51,7 +57,7 @@ class Player:
                         break
 
         game.dealt_card = cards.draw_card()
-        card_msg = msg.create_message(msg.card_type, True, self.org_addr, self.org_addr, game.dealt_card)
+        card_msg = msg.create_message(msg.card_type, True, self.id, self.id, game.dealt_card)
 
         while True:
             msg.send_message(ntw, self, card_msg)
@@ -79,7 +85,7 @@ class Player:
         #guess = random.randint(0, ROUND)
         print('Meu palpite:', guess, '\n')
 
-        guess_msg = msg.create_message(msg.guess_type, False, self.org_addr, game.dealer, guess)
+        guess_msg = msg.create_message(msg.guess_type, False, self.id, game.dealer, guess)
         return guess_msg
 
     def pick_a_card(self, msg, game):
@@ -94,13 +100,13 @@ class Player:
         #card = random.choice(self.hand)
         print('Carta jogada: ', card, '\n')
         self.hand.remove(card)
-        card_msg = msg.create_message(msg.play_type, False, self.org_addr, game.dealer, card)
+        card_msg = msg.create_message(msg.play_type, False, self.id, game.dealer, card)
 
         return card_msg
 
     def play(self, ntw, msg, game):
         play_msg = self.pick_a_card(msg, game)
-        end_msg = msg.create_message(msg.end_type, True, self.org_addr, game.dealer, 'end of play round')
+        end_msg = msg.create_message(msg.end_type, True, self.id, game.dealer, 'end of play round')
         
         if not self.dealer:
             received = False
@@ -142,16 +148,16 @@ class Player:
                 if data and data['data'] == end_msg['data']:
                     received = True
 
-            plays = sorted(plays, key=lambda play: play[0][1])
+            plays = sorted(plays, key=lambda play: play[0])
             game.plays = plays
             print('Cartas jogadas:\n')
             for play in game.plays:
-                print('Jogador', ntw.players[play[0]], ':', play[1])
+                print('Jogador', play[0], ':', play[1])
             print()
 
     def show_life(self, ntw, msg, game):
-        life_msg = msg.create_message(msg.life_type, False, self.org_addr, game.dealer, self.life)
-        end_msg = msg.create_message(msg.end_type, True, self.org_addr, game.dealer, 'end of life round')
+        life_msg = msg.create_message(msg.life_type, False, self.id, game.dealer, self.life)
+        end_msg = msg.create_message(msg.end_type, True, self.id, game.dealer, 'end of life round')
 
         if not self.dealer:
             received = False
@@ -192,9 +198,10 @@ class Player:
                 if data and data['data'] == end_msg['data']:
                     received = True
 
-            lives = sorted(lives, key=lambda life: life[0][1])
+            lives = sorted(lives, key=lambda life: life[0])
             game.lives = lives
+            print('Vidas:\n')
             for life in game.lives:
-                print('Player', ntw.players[life[0]], ':', life[1])
+                print('Player', life[0], ':', life[1])
             print()
 

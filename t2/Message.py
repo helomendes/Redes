@@ -32,8 +32,6 @@ class Message:
         try:
             data, _ = ntw.sock.recvfrom(1024)
             data = json.loads(data.decode())
-            data['origin'] = (data['origin'][0], data['origin'][1])
-            data['destination'] = (data['destination'][0], data['destination'][1])
             return data
         except Exception as e:
             return None
@@ -42,18 +40,18 @@ class Message:
         if data:
             if data['broadcast']:
                 return 1
-            elif data['destination'] == player.org_addr:
+            elif data['destination'] == player.id:
                 return 2
         return 0
 
     def is_for_me(self, player, data):
         if data:
-            if data['destination'] == player.org_addr:
+            if data['destination'] == player.id:
                 return True
         return False
 
     def is_mine(self, player, data):
         if data:
-            if data['origin'] == player.org_addr:
+            if data['origin'] == player.id:
                 return True
         return False

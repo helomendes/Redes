@@ -14,6 +14,11 @@ class Network:
                 ('localhost', 2003): 4
                 }
 
+    def get_local_ip(self):
+        hostname = socket.gethostname()
+        local_ip = socket.gethostbyname(hostname)
+        return str(local_ip)
+
     def create_socket(self):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.sock.settimeout(0.1)
@@ -27,7 +32,7 @@ class Network:
 
     def create_token(self, msg, player):
         if player.dealer and not self.token:
-            self.token = msg.create_message(msg.token_type, False, player.org_addr, player.dest_addr, 'token')
+            self.token = msg.create_message(msg.token_type, False, player.id, player.id, 'token')
             player.token = True
 
     def pass_token(self, msg, player):
@@ -38,8 +43,8 @@ class Network:
         player.token = True
 
     def establish_network(self, player, msg):
-        packet_1 = msg.create_message(msg.test_type, True, player.org_addr, player.org_addr, 'establishing network')
-        packet_2 = msg.create_message(msg.test_type, True, player.org_addr, player.org_addr, 'network established')
+        packet_1 = msg.create_message(msg.test_type, True, player.id, player.id, 'establishing network')
+        packet_2 = msg.create_message(msg.test_type, True, player.id, player.id, 'network established')
 
         if player.id == 1:
             received = False
